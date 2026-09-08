@@ -2,12 +2,10 @@
 
 ## 先看兼容范围
 
-我目前把 EditaPlot V1 的完整支持范围限定为 **Windows 10/11 x64 实体电脑**。macOS（Intel 与 Apple Silicon）、
-Linux、WSL、Wine/CrossOver、Parallels 及其他虚拟机均不支持。当前没有 Mac 绘图模式，
-也不建议用兼容层尝试调用 Origin。
-
-我让 `doctor` 硬性检查 Windows 版本和 x64 架构，但它无法可靠识别所有虚拟机；如果机器类型
-不明确，请你确认它是实体 Windows 电脑。V1 对虚拟机仍不提供支持承诺。
+EditaPlot 的完整验证基线仍是 **Windows 10/11 x64 实体电脑**。Apple Silicon Mac 上的 Parallels +
+Windows 11 ARM 可在 guest 内使用 x64 CPython 和 x64 Origin；CPython 3.12 + Origin 2024 SR1
+已通过真实 smoke 与完整产物门禁。`setup` 自动发现并保存活动 Origin 路径。
+Intel Mac、Linux、WSL、Wine/CrossOver 及其他虚拟机仍不支持；当前没有原生 Mac 绘图模式。
 
 你还需要：
 
@@ -330,18 +328,23 @@ runtime，通常得到 `engine_not_found`。请保留完整仓库，并用根目
 可能是命令行指向旧版 Python，或只安装了不受支持的 3.13。直接运行
 `.\editaplot.cmd --diagnose`；启动器会搜索 64 位 CPython 3.10–3.12，并优先复用兼容版本。
 
-### Mac 能不能先用分析功能？
+### Apple Silicon Parallels 怎么握手？
 
-V1 不支持。为避免“分析能跑、Origin 绘图不能跑”的半成品体验，macOS（Intel/Apple Silicon）
-被明确列为不支持；Parallels、Wine/CrossOver 和其他虚拟化方案也不在支持范围。
+公开版本不包含 Origin 路径。第一次调用时，Agent 会先要求用户启动并登录 Windows 11 ARM guest，
+然后运行 macOS 入口 `editaplot-parallels.sh`。`setup` 会读取活动 `Origin.Application` 注册位置，
+把目录写入 Skill 的 `.editaplot-local.json`；若无法唯一发现，Agent 再询问安装目录并通过
+`setup --origin-home` 验证、保存。以后 `doctor`、`origin-smoke` 和 `render` 自动使用它。
+EditaPlot 仍会比较注册位置与 Origin 启动后的程序路径，任何不匹配都会停止。完整宿主机流程见
+[Apple Silicon Parallels 工作流](parallels-workflow.zh-CN.md)。
 
 ---
 
 ## English summary
 
-EditaPlot V1 supports **physical Windows 10/11 x64 computers only**. macOS (Intel or Apple
-Silicon), Linux, WSL, Wine/CrossOver, Parallels, and other VMs are unsupported. Use 64-bit
-CPython 3.10–3.12 and a local Origin/OriginPro application reachable through Automation.
+EditaPlot's fully verified baseline is **physical Windows 10/11 x64**. Apple Silicon Parallels
+guests running Windows 11 on ARM may use the qualified compatibility route with x64 CPython and x64 Origin.
+Setup discovers and persists the active Origin directory. Native macOS, Intel Macs, Linux, WSL, Wine/CrossOver, and other
+VMs are unsupported.
 The compatibility target is Origin/OriginPro 2021–2026b; Origin 2024b (10.15) with CPython 3.10
 is the only current fully verified live baseline. Other target versions are reported after a local
 handshake, real smoke test, and template capability check. Doctor performs read-only discovery and never proves a live

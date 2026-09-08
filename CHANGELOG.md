@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-08 — Explicit Origin handshake for Apple Silicon Parallels
+
+- Added an Apple Silicon macOS launcher and an unbound first-use flow: public releases contain no
+  Origin path, setup discovers or validates a user-confirmed path in the signed-in Parallels guest,
+  and later commands reuse only the untracked local configuration.
+- Qualified Windows 11 ARM with x64 CPython 3.12 and Origin 2024 SR1 through real smoke plus
+  OPJU/PNG/PDF/TIF render and readback gates.
+- Made setup persist the active Origin directory and apply it automatically to Doctor, smoke, and
+  render; explicit `--origin-home` remains a one-call override.
+- Recognized x64 Python under Windows ARM through `win-amd64` and made JSON diagnostics safe on
+  legacy Parallels console encodings.
+- Added `--origin-home` to Doctor, smoke, and render so a Windows 11 ARM guest can bind the
+  workflow to a user-selected x64 Origin installation without modifying COM registration.
+- Doctor now blocks a registration mismatch; every live session also compares Origin's own program
+  path readback before project initialization and closes an owned mismatched instance.
+- Kept the route compatibility-gated until a real Parallels smoke and complete OPJU/PNG/PDF/TIF
+  verification pass. Native macOS, Intel Mac, and other virtual machines remain unsupported.
+
 ## 2026-09-07 — SHAP dashboard with editable nested contribution rings
 
 - Added `shap_dashboard`: aligned importance bars with mean/percentage labels, a separate SHAP

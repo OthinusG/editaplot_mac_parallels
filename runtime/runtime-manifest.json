@@ -130,8 +130,8 @@
     },
     {
       "path": "src/origin_sciplot/origin_backend/session.py",
-      "size_bytes": 16162,
-      "sha256": "10d214319c4194898e19efa8e7819a1abbde1bb539a0c4e12c6c5f015da89272"
+      "size_bytes": 18078,
+      "sha256": "b8d098d16983011430a85cb4935209915e94655fb9bb5c8ec883f96747b07a4b"
     },
     {
       "path": "src/origin_sciplot/origin_backend/shap_dashboard_renderer.py",

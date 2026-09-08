@@ -2,10 +2,11 @@
 
 ## 30 秒版本
 
-前提：Windows 10/11 x64 实体电脑、64 位 CPython 3.10–3.12，以及本机已安装
-Origin/OriginPro 2021–2026b 范围内的版本。Origin 2024b（10.15）是当前唯一完整实机基线；
+完整验证前提：Windows 10/11 x64 实体电脑、64 位 CPython 3.10–3.12，以及本机已安装
+Origin/OriginPro 2021–2026b 范围内的版本。Apple Silicon Parallels + Windows 11 ARM 可在 guest
+内使用 x64 CPython 和 x64 Origin；`setup` 会自动保存活动 Origin 路径。Origin 2024b（10.15）是当前唯一完整版本基线；
 其他目标版本会经过本机握手、真实 smoke 和模板能力检查后报告兼容状态。Origin 2020b 及更早版本、
-macOS、Linux、WSL、Wine/CrossOver、Parallels 与其他虚拟机不支持。
+原生 macOS、Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
 
 我当前公开了 41 条 Origin 绘图路线，保留 50 张通过完整验证的 PNG 作为审计资产，其中
 48 张用于页面展示。新加入的三维双密度路线只接受用户上游提供的两条密度曲线和每组一个

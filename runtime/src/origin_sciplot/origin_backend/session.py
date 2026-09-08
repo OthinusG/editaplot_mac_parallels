@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import math
+import os
 import platform
 import struct
 from contextlib import suppress
 from dataclasses import dataclass
 from importlib import metadata
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
@@ -24,6 +26,8 @@ from .safe_errors import (
 )
 from .version_risks import ProbePriority, known_version_risks
 
+EXPECTED_ORIGIN_HOME_ENV = "EDITAPLOT_EXPECTED_ORIGIN_HOME"
+
 
 @dataclass(frozen=True)
 class OriginEnvironment:
@@ -37,6 +41,7 @@ class OriginEnvironment:
     connection_mode: ConnectionMode
     ownership: SessionOwnership
     origin_version_info: OriginVersionInfo
+    origin_home_verified: bool = False
 
     @property
     def version_status(self) -> str:
@@ -98,6 +103,8 @@ class OriginEnvironment:
         advisory = self.version_advisory_to_dict()
         if advisory["known_version_risks"] or unknown_version:
             payload.update(advisory)
+        if self.origin_home_verified:
+            payload["origin_home_verified"] = True
         return payload
 
 
@@ -186,6 +193,7 @@ class OriginSession:
 
         self.ownership = SessionOwnership.EDITAPLOT
         self._wait_until_ready(op)
+        origin_home_verified = self._validate_expected_origin_home(op)
         version_info = self._read_supported_version(op)
 
         try:
@@ -199,7 +207,10 @@ class OriginSession:
                 stage="initialize_project",
             ) from exc
 
-        self.environment = self._environment(version_info)
+        self.environment = self._environment(
+            version_info,
+            origin_home_verified=origin_home_verified,
+        )
         return self
 
     def _wait_until_ready(self, op: ModuleType | Any) -> None:
@@ -253,9 +264,40 @@ class OriginSession:
             ) from exc
 
         self.ownership = SessionOwnership.USER
+        origin_home_verified = self._validate_expected_origin_home(op)
         version_info = self._read_supported_version(op)
-        self.environment = self._environment(version_info)
+        self.environment = self._environment(
+            version_info,
+            origin_home_verified=origin_home_verified,
+        )
         return self
+
+    def _validate_expected_origin_home(self, op: ModuleType | Any) -> bool:
+        expected_value = os.environ.get(EXPECTED_ORIGIN_HOME_ENV)
+        if not expected_value:
+            return False
+        try:
+            expected = Path(expected_value).resolve(strict=True)
+            actual_value = op.path("e")
+            if not isinstance(actual_value, str) or not actual_value.strip():
+                raise OSError("Origin returned no program directory")
+            actual = Path(actual_value).resolve(strict=True)
+            matches = os.path.samefile(expected, actual)
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            self._cleanup_failed_entry(op)
+            raise OriginEnvironmentError(
+                "The selected Origin installation could not be verified.",
+                code="origin_home_invalid",
+                stage="validate_origin_home",
+            ) from exc
+        if not matches:
+            self._cleanup_failed_entry(op)
+            raise OriginEnvironmentError(
+                "Origin Automation started a different installation than the one selected.",
+                code="origin_installation_mismatch",
+                stage="validate_origin_home",
+            )
+        return True
 
     def _read_supported_version(self, op: ModuleType | Any) -> OriginVersionInfo:
         try:
@@ -287,7 +329,12 @@ class OriginSession:
             return _unknown_version_info(version_info)
         return version_info
 
-    def _environment(self, version_info: OriginVersionInfo) -> OriginEnvironment:
+    def _environment(
+        self,
+        version_info: OriginVersionInfo,
+        *,
+        origin_home_verified: bool = False,
+    ) -> OriginEnvironment:
         if self.ownership is None:
             raise RuntimeError("Origin session ownership was not established")
         origin_version = (
@@ -304,6 +351,7 @@ class OriginSession:
             connection_mode=self.connection_mode,
             ownership=self.ownership,
             origin_version_info=version_info,
+            origin_home_verified=origin_home_verified,
         )
 
     def _cleanup_failed_entry(self, op: ModuleType | Any) -> None:

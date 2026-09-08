@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -593,11 +594,15 @@ def test_plan_is_hash_bound_and_builds_safe_worker_command(tmp_path: Path) -> No
 
     plan_file = tmp_path / "render-plan.json"
     plan_file.write_text(json.dumps(plan), encoding="utf-8")
+    origin_home = tmp_path / "Origin2024b"
+    origin_home.mkdir()
+    (origin_home / "Origin64.exe").touch()
     validate_plan(plan)
     command, env, root = build_worker_command(
         plan,
         plan_file=plan_file,
         engine_home=ENGINE,
+        origin_home=origin_home,
     )
 
     assert plan["can_render"] is True
@@ -615,6 +620,46 @@ def test_plan_is_hash_bound_and_builds_safe_worker_command(tmp_path: Path) -> No
     assert "--keep-origin-open" in command
     assert root == ENGINE.resolve()
     assert str(ENGINE / "src") in env["PYTHONPATH"]
+    assert env[core.EXPECTED_ORIGIN_HOME_ENV] == str(origin_home.resolve())
+
+
+def test_origin_home_accepts_directory_or_origin64_executable(tmp_path: Path) -> None:
+    origin_home = tmp_path / "Origin2024b"
+    origin_home.mkdir()
+    executable = origin_home / "Origin64.exe"
+    executable.touch()
+
+    assert core.resolve_origin_home(origin_home) == (
+        origin_home.resolve(),
+        executable.resolve(),
+    )
+    assert core.resolve_origin_home(executable) == (
+        origin_home.resolve(),
+        executable.resolve(),
+    )
+
+
+def test_origin_home_rejects_missing_origin64_executable(tmp_path: Path) -> None:
+    with pytest.raises(EditaPlotError) as raised:
+        core.resolve_origin_home(tmp_path / "NotOrigin")
+
+    assert raised.value.code == "origin_home_invalid"
+
+
+def test_origin_home_cli_option_is_available_on_all_origin_entry_points() -> None:
+    parser = editaplot_cli.build_parser()
+
+    assert parser.parse_args(["doctor", "--origin-home", "Origin"]).origin_home == "Origin"
+    assert (
+        parser.parse_args(
+            ["origin-smoke", "--output-dir", "smoke", "--origin-home", "Origin"]
+        ).origin_home
+        == "Origin"
+    )
+    assert (
+        parser.parse_args(["render", "plan.json", "--origin-home", "Origin"]).origin_home
+        == "Origin"
+    )
 
 
 def test_default_render_output_is_a_direct_sibling_of_the_source(tmp_path: Path) -> None:
@@ -1092,6 +1137,88 @@ def test_windows_host_gate_accepts_windows_10_amd64() -> None:
 
     assert result["compatible"] is True
     assert result["virtual_machine_detection_performed"] is False
+
+
+def test_windows_host_gate_accepts_x64_python_on_windows_arm() -> None:
+    result = windows_host_compatibility(
+        system="Windows",
+        machine="ARM64",
+        process_platform="win-amd64",
+        windows_major=11,
+    )
+
+    assert result["compatible"] is True
+    assert result["process_platform"] == "win-amd64"
+
+
+def test_windows_host_gate_rejects_native_arm64_python() -> None:
+    result = windows_host_compatibility(
+        system="Windows",
+        machine="ARM64",
+        process_platform="win-arm64",
+        windows_major=11,
+    )
+
+    assert result["compatible"] is False
+    assert "windows_x64_amd64_required" in result["reasons"]
+
+
+def test_bootstrap_applies_persisted_origin_home_unless_explicit() -> None:
+    config = {"origin_home": "<persisted-origin-home>"}
+
+    assert bootstrap._apply_local_origin_home(["doctor"], config) == [
+        "doctor",
+        "--origin-home",
+        config["origin_home"],
+    ]
+    explicit = ["render", "plan.json", "--origin-home", "<override-origin-home>"]
+    assert bootstrap._apply_local_origin_home(explicit, config) == explicit
+    assert bootstrap._apply_local_origin_home(["inspect", "data.csv"], config) == [
+        "inspect",
+        "data.csv",
+    ]
+
+
+def test_bootstrap_discovers_active_origin_home(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    origin_home = tmp_path / "Origin2024"
+    origin_home.mkdir()
+    executable = origin_home / "Origin64.exe"
+    executable.write_bytes(b"")
+    monkeypatch.setattr(
+        bootstrap,
+        "discover_origin_application",
+        lambda: {"path": str(executable), "installed_candidates": []},
+    )
+
+    assert bootstrap._discover_origin_home() == str(origin_home.resolve())
+
+
+def test_setup_options_accept_persisted_origin_home(tmp_path: Path) -> None:
+    target, origin_home, error = bootstrap._parse_setup_options(
+        [
+            "--target",
+            str(tmp_path / "skill"),
+            "--origin-home",
+            "selected-origin-home",
+        ]
+    )
+
+    assert target == tmp_path / "skill"
+    assert origin_home == "selected-origin-home"
+    assert error is None
+
+
+def test_bootstrap_json_output_falls_back_on_legacy_console_encoding() -> None:
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="cp1252")
+
+    bootstrap._emit({"message": "中文诊断"}, stream=stream)
+    stream.flush()
+
+    assert json.loads(buffer.getvalue().decode("cp1252")) == {"message": "中文诊断"}
 
 
 def test_bootstrap_prefers_explicit_compatible_python(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -2085,13 +2212,20 @@ def test_setup_success_atomically_removes_files_deleted_from_new_skill(
     ).read_bytes()
 
 
-def test_setup_always_requests_managed_repair_even_when_base_is_ready(
+def test_setup_persists_explicit_origin_home_and_requests_managed_repair(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     target = tmp_path / "fresh-editaplot"
-    monkeypatch.setattr(bootstrap.platform, "system", lambda: "Windows")
+    origin_home = tmp_path / "Origin2024"
+    origin_home.mkdir()
+    (origin_home / "Origin64.exe").touch()
+    monkeypatch.setattr(
+        bootstrap,
+        "windows_host_compatibility",
+        lambda: {"compatible": True, "reasons": []},
+    )
     monkeypatch.setattr(bootstrap, "_resolve_engine", lambda _argv: (ENGINE, {}))
     monkeypatch.setattr(
         bootstrap,
@@ -2121,10 +2255,20 @@ def test_setup_always_requests_managed_repair_even_when_base_is_ready(
 
     monkeypatch.setattr(bootstrap, "_run_json_command", fake_run)
 
-    assert bootstrap.install_skill(["--target", str(target)]) == 0
-    capsys.readouterr()
+    assert (
+        bootstrap.install_skill(
+            ["--target", str(target), "--origin-home", str(origin_home)]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
     assert commands[0][2] == "repair-environment"
     assert commands[1][0] == "managed-python.exe"
+    assert commands[1][-2:] == ["--origin-home", str(origin_home.resolve())]
+    assert payload["origin_home_source"] == "explicit"
+    assert json.loads((target / bootstrap.LOCAL_CONFIG_NAME).read_text(encoding="utf-8"))[
+        "origin_home"
+    ] == str(origin_home.resolve())
 
 
 def test_setup_command_timeout_is_structured(monkeypatch: pytest.MonkeyPatch) -> None:

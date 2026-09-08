@@ -75,6 +75,62 @@ def test_default_session_launches_and_owns_an_isolated_instance(
     ]
 
 
+def test_explicit_origin_home_is_verified_from_live_program_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    origin_home = tmp_path / "Origin2024b"
+    origin_home.mkdir()
+    (origin_home / "Origin64.exe").touch()
+    monkeypatch.setenv(session_module.EXPECTED_ORIGIN_HOME_ENV, str(origin_home))
+    fake_originpro = SimpleNamespace(
+        oext=True,
+        set_show=lambda _show: None,
+        lt_exec=lambda _command: True,
+        lt_float=lambda name: 1.0 if name == "run.isOCready()" else 10.15,
+        path=lambda kind: str(origin_home) if kind == "e" else "",
+        new=lambda **_kwargs: None,
+        exit=lambda: None,
+    )
+    monkeypatch.setitem(sys.modules, "originpro", fake_originpro)
+
+    with OriginSession(keep_open=False) as origin_session:
+        environment = origin_session.environment
+        assert environment is not None
+        assert environment.to_dict()["origin_home_verified"] is True
+
+
+def test_explicit_origin_home_mismatch_closes_owned_instance_before_project_reset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requested = tmp_path / "Origin2024b"
+    actual = tmp_path / "Origin2025b"
+    requested.mkdir()
+    actual.mkdir()
+    (requested / "Origin64.exe").touch()
+    (actual / "Origin64.exe").touch()
+    monkeypatch.setenv(session_module.EXPECTED_ORIGIN_HOME_ENV, str(requested))
+    events: list[str] = []
+    fake_originpro = SimpleNamespace(
+        oext=True,
+        set_show=lambda _show: None,
+        lt_exec=lambda _command: True,
+        lt_float=lambda name: 1.0 if name == "run.isOCready()" else 10.25,
+        path=lambda kind: str(actual) if kind == "e" else "",
+        new=lambda **_kwargs: events.append("unexpected_new"),
+        exit=lambda: events.append("exit"),
+    )
+    monkeypatch.setitem(sys.modules, "originpro", fake_originpro)
+
+    with pytest.raises(OriginEnvironmentError) as raised:
+        OriginSession(keep_open=False).__enter__()
+
+    assert raised.value.code == "origin_installation_mismatch"
+    assert raised.value.stage == "validate_origin_home"
+    assert events == ["exit"]
+
+
 def test_attach_mode_never_hides_resets_or_closes_user_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -40,6 +40,13 @@ def _engine_option(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _origin_home_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--origin-home",
+        help="Expected Origin installation directory or Origin64.exe path.",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="EditaPlot")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -51,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create a project-local environment and install audited Python dependencies only.",
     )
     _engine_option(doctor_parser)
+    _origin_home_option(doctor_parser)
 
     repair_parser = subparsers.add_parser(
         "repair-environment",
@@ -158,6 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
     render_parser.add_argument("--output-dir")
     render_parser.add_argument("--close-origin", action="store_true")
     _engine_option(render_parser)
+    _origin_home_option(render_parser)
 
     smoke_parser = subparsers.add_parser(
         "origin-smoke",
@@ -167,6 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
     smoke_parser.add_argument("--python", dest="python_executable")
     smoke_parser.add_argument("--keep-origin-open", action="store_true")
     _engine_option(smoke_parser)
+    _origin_home_option(smoke_parser)
 
     verify_parser = subparsers.add_parser("verify", help="Check required Origin run artifacts")
     verify_parser.add_argument("output_directory")
@@ -186,7 +196,14 @@ def build_parser() -> argparse.ArgumentParser:
 def _emit(payload: dict[str, Any], output: str | None = None) -> None:
     if output:
         write_json(output, payload)
-    print(json.dumps(payload, ensure_ascii=False, indent=2), flush=True)
+    rendered = json.dumps(payload, ensure_ascii=False, indent=2)
+    encoding = getattr(sys.stdout, "encoding", None)
+    if encoding:
+        try:
+            rendered.encode(encoding)
+        except UnicodeEncodeError:
+            rendered = json.dumps(payload, ensure_ascii=True, indent=2)
+    print(rendered, flush=True)
 
 
 def _paths_refer_to_same_file(left: str | Path, right: str | Path) -> bool:
@@ -309,6 +326,7 @@ def _run_render(args: argparse.Namespace) -> int:
         python_executable=args.python_executable,
         output_dir=args.output_dir,
         close_origin=args.close_origin,
+        origin_home=args.origin_home,
     )
     start_event = {
         "type": "editaplot_render_start",
@@ -339,6 +357,7 @@ def _run_origin_smoke(args: argparse.Namespace) -> int:
         engine_home=args.engine_home,
         python_executable=args.python_executable,
         keep_origin_open=args.keep_origin_open,
+        origin_home=args.origin_home,
     )
     print(
         json.dumps(
@@ -374,7 +393,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "doctor":
-            before = doctor(engine_home=args.engine_home)
+            before = doctor(
+                engine_home=args.engine_home,
+                origin_home=args.origin_home,
+            )
             if args.repair and not before["ready_for_render"]:
                 if before["automatic_repair"]["available"]:
                     _emit(

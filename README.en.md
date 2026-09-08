@@ -19,7 +19,7 @@ I built EditaPlot as a local Windows Codex Skill for turning your experimental d
 I did not want this to become a collection of rigid “replace the numbers” templates, and a Python preview is never passed off as an Origin result. You keep control of the scientific meaning and final choices. When the input is ambiguous, EditaPlot lists the unresolved columns and asks you before drawing instead of inventing columns, fits, or conclusions.
 
 > [!WARNING]
-> **I have completed full validation only on physical Windows 10/11 x64 computers.** V1 therefore does not yet provide a macOS (Intel or Apple Silicon), Linux, WSL, Wine/CrossOver, Parallels, or other virtual-machine version. If you use a Mac, this release cannot complete the Origin workflow; use a physical Windows computer and check future release notes for platform updates.
+> **Physical Windows 10/11 x64 remains the fully verified baseline.** Apple Silicon Parallels with Windows 11 on ARM has passed a real smoke and complete-artifact workflow with x64 CPython 3.12 and Origin 2024 SR1. Public releases contain no Origin path: first use asks the user to start and sign in to the VM, then `editaplot-parallels.sh` discovers and saves the path locally for later commands. Origin 2024b (10.15) remains the only fully verified version baseline. Intel Macs, Linux, WSL, Wine/CrossOver, and other VMs remain unsupported.
 
 > [!IMPORTANT]
 > I release EditaPlot under the [Apache License 2.0](LICENSE). The current compatibility target is Origin/OriginPro 2021–2026b. You do not need to open it first: EditaPlot starts a dedicated instance before rendering. I do not install or modify Origin.
@@ -221,7 +221,7 @@ I created these palettes as original abstractions and redraws. They do not copy 
 
 | Item | What you need to know |
 |---|---|
-| OS | I have fully validated physical Windows 10/11 x64 computers; Mac, Linux, WSL, and VM versions are not available yet |
+| OS | The fully verified baseline is physical Windows 10/11 x64; Apple Silicon Parallels with Windows 11 on ARM can run a compatibility handshake against a user-selected Origin installation |
 | Origin | The compatibility target is Origin/OriginPro 2021–2026b; 2024b (10.15) is the only current fully verified baseline, while other target versions are reported from a local handshake, live tests, and template capabilities |
 | Python | You need 64-bit Python 3.10–3.12; the launcher selects it automatically, so no manual setup is needed |
 | Input | You can use CSV, TXT, XLS, or XLSX, including Chinese headers and paths |

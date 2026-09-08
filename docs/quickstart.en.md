@@ -2,11 +2,13 @@
 
 ## The 30-second version
 
-Requirements: a physical Windows 10/11 x64 computer, 64-bit CPython 3.10–3.12, and a local
-Origin/OriginPro version in the 2021–2026b compatibility target. Origin 2024b (10.15) is the only
+Fully verified requirements: a physical Windows 10/11 x64 computer, 64-bit CPython 3.10–3.12, and a local
+Origin/OriginPro version in the 2021–2026b compatibility target. Apple Silicon Parallels with
+Windows 11 on ARM may run the guest-side compatibility handshake with x64 CPython, x64 Origin,
+and a setup-time persisted Origin path. Origin 2024b (10.15) is the only
 current fully verified live baseline; other target versions receive a compatibility result after a
-local handshake, real smoke test, and template capability check. Origin 2020b and earlier, macOS,
-Linux, WSL, Wine/CrossOver, Parallels, and other VMs are unsupported.
+local handshake, real smoke test, and template capability check. Origin 2020b and earlier, native
+macOS, Intel Macs, Linux, WSL, Wine/CrossOver, and other VMs are unsupported.
 
 I currently publish 41 Origin plotting routes and retain 50 fully reviewed PNGs as verification
 assets. The public page displays 48 cases. The new 3D dual-density route accepts only upstream

@@ -1,6 +1,6 @@
 ---
 name: editaplot
-description: Analyze local scientific CSV, TXT, XLS, or XLSX data; recommend publication-informed charts and Chinese scientific palettes; freeze a reproducible plan; and automate editable figures through a callable local Origin/OriginPro installation on physical Windows 10/11 x64. Use for beginner “drop in a file and draw it” requests; XPS, XRD, XAS, PL/TRPL, DSC, NMR, FTIR/IR, UV-Vis, electrochemistry, medical/AI evidence, distribution, relationship, error-bar, bar, stacked, pie, Sankey, radar, heatmap, or verified 3D workflows; project-local Python setup; palette selection; and OPJU/PNG/PDF/TIF verification. Do not use on macOS, Linux, WSL, Wine/CrossOver, Parallels, or other VMs; to install or modify Origin; to redistribute reference images; or to claim an unverified Origin route.
+description: Analyze local scientific CSV, TXT, XLS, or XLSX data; recommend publication-informed charts and Chinese scientific palettes; freeze a reproducible plan; and automate editable figures through a callable local Origin/OriginPro installation on physical Windows 10/11 x64 or the compatibility-gated Apple Silicon Parallels route. Use for beginner “drop in a file and draw it” requests; XPS, XRD, XAS, PL/TRPL, DSC, NMR, FTIR/IR, UV-Vis, electrochemistry, medical/AI evidence, distribution, relationship, error-bar, bar, stacked, pie, Sankey, radar, heatmap, or verified 3D workflows; project-local Python setup; palette selection; and OPJU/PNG/PDF/TIF verification. Do not use on native macOS, Intel Mac, Linux, WSL, Wine/CrossOver, or other VMs; to install or modify Origin; to redistribute reference images; or to claim an unverified Origin route.
 ---
 
 # EditaPlot
@@ -32,14 +32,28 @@ rendering, exporting, and readback.
 
 ## Start with the beginner path
 
-1. Reject unsupported platforms before installing anything. Support the CLI/dependency layer only
-   on physical Windows 10/11 x64 with 64-bit CPython 3.10–3.12. Target Origin/OriginPro 2021 and
+The published Skill never contains a machine-specific Origin path. On its first Apple Silicon
+macOS invocation, check for `origin_home` in the untracked `.editaplot-local.json`. If it is absent,
+tell the user to start the Windows 11 ARM guest and sign in; do not continue until the interactive
+desktop is available. Then run repository-root `editaplot-parallels.sh`. The script selects the VM
+automatically only when exactly one VM exists, enters it through `prlctl exec <vm> --current-user`,
+runs setup, discovers Origin, and writes the local configuration. Never use the default `SYSTEM`
+channel for Origin Automation. If discovery is absent or ambiguous, ask once for the Windows Origin
+installation directory and rerun the script with `--origin-home`; never put that value in source,
+documentation, a commit, or a release artifact. If the current-user channel returns `Invalid
+argument`, open that guest's Coherence Windows PowerShell app once, confirm Windows is logged in,
+and retry. Later calls use the installed launcher and persisted path without asking again.
+
+1. Reject unsupported platforms before installing anything. Support the CLI/dependency layer on
+   physical Windows 10/11 x64 or an Apple Silicon Parallels Windows 11 ARM guest, always using x64
+   CPython 3.10–3.12 and x64 Origin. Target Origin/OriginPro 2021 and
    later through external `originpro`; Origin 2020b and earlier are unsupported by this route.
    The fully verified live baseline is CPython 3.10 + Origin 2024b / 10.15. Treat another 2021+
    version as capability-gated, not automatically verified, until its smoke and complete artifacts
-   pass. State plainly that macOS (Intel/Apple Silicon), Linux, WSL,
-   Wine/CrossOver, Parallels, and other VMs are unsupported in V1. `doctor` cannot reliably detect
-   every VM, so ask the user to confirm a physical Windows host when that fact is unknown.
+   pass. On the Parallels route, let first-use `setup` persist the active Origin registration and
+   use that default for `doctor`, `origin-smoke`, and `render`. `setup --origin-home` validates and
+   persists a user-confirmed fallback; `--origin-home` on those later commands is a one-call
+   override. Native macOS, Intel Mac, Linux, WSL, Wine/CrossOver, and other VMs remain unsupported.
 2. Locate `editaplot.cmd` in the installed Skill directory; when working from a cloned repository,
    use the repository-root `editaplot.cmd`. Use an absolute launcher path in commands. Do not make
    beginners select a Python executable or invoke `scripts/editaplot.py` directly.
@@ -52,7 +66,9 @@ rendering, exporting, and readback.
    `Python.Python.3.12` with user scope and x64 architecture. If winget is unavailable, provide the
    official python.org Windows installation instructions and wait for the user; never use an
    untrusted mirror or silently install Python.
-5. Run `editaplot.cmd doctor` for each new workflow. Allow `doctor --repair` only for the reported
+5. Run `editaplot.cmd doctor` for each new workflow. In an Apple Silicon Parallels guest, use the
+   setup-persisted Origin directory; pass `--origin-home <directory-or-Origin64.exe>` only for an
+   intentional one-call override. Allow `doctor --repair` only for the reported
    project-local Python dependency repair. Keep all Python packages in `.editaplot-venv`. Treat
    Origin as a locally installed user-managed application; never install or modify it during repair.
 6. Run `editaplot.cmd start <data-file>` for a new table. Add `--intent "<user intent>"` when the
@@ -147,13 +163,15 @@ rendering, exporting, and readback.
     applies only to the waiting job: it stops that waiter without killing or interrupting the active
     holder. Do not submit a duplicate while a queue message is visible. Manual scripts, older
     EditaPlot releases, and unrelated programs are outside this coordination boundary.
+    On the Apple Silicon Parallels route, the setup-persisted Origin path is applied automatically.
+    A mismatch between that path and Origin's live program-path readback fails the smoke.
 15. Only after that smoke passes, render an allowed template route with
     `editaplot.cmd render <plan>`. Keep an EditaPlot-owned Origin instance open after success unless
     the user requests otherwise. By default, let the runtime create a direct sibling of the source
     file named `<source_stem>_EditaPlot_YYYYMMDD_HHMMSS`; keep all formal artifacts in that folder.
     Do not redirect ordinary runs to the repository, Skill directory, current working directory, or
     a shared global output folder. Use `--output-dir` only when the user explicitly requests another
-    location.
+    location. On the Apple Silicon Parallels route, reuse the setup-persisted Origin path.
 16. Run `editaplot.cmd verify <output-directory>` against that source-adjacent folder and perform
     human visual QA. If smoke or render fails, a Python preview or standalone PNG/PDF/SVG is only
     a preview and must not be presented as completed Origin work. Formal success requires the

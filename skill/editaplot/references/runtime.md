@@ -14,16 +14,18 @@
 
 ## Supported environment
 
-Support the CLI and locked dependency layer on physical Windows 10/11 x64 computers with 64-bit
-CPython 3.10, 3.11, or 3.12. Target Origin/OriginPro 2021 and later; Origin 2020b and earlier are
+Support the CLI and locked dependency layer on physical Windows 10/11 x64 or an Apple Silicon
+Parallels Windows 11 ARM guest with x64 CPython 3.10, 3.11, or 3.12. Target Origin/OriginPro 2021 and later; Origin 2020b and earlier are
 unsupported by the current external `originpro` route. The fully verified live baseline is
 CPython 3.10 with Origin 2024b / 10.15. Other 2021+ versions are capability-gated, and
 Python 3.11/3.12 rendering needs the same full-artifact verification before it is claimed.
-Do not attempt setup on macOS (Intel or Apple Silicon), Linux, WSL, Wine/CrossOver, Parallels,
-or other virtual machines. A local Origin/OriginPro application must expose a working Automation
-entry when rendering is requested.
-`doctor` cannot reliably detect every virtual machine, so ask the user to confirm a physical
-Windows host whenever that fact is unknown. VMs remain unsupported in V1.
+The Parallels route runs entirely inside the Windows guest. The published Skill contains no Origin
+path. First-use setup discovers the active Origin registration and persists its directory locally
+for `doctor`, `origin-smoke`, and `render`; `setup --origin-home` persists a user-confirmed fallback,
+while the same option on a later command is a one-call override. Origin 2024 SR1 with CPython 3.12 has passed the real smoke
+and complete artifact gates on Windows 11 ARM. Native macOS, Intel Mac,
+Linux, WSL, Wine/CrossOver, and other virtual machines remain unsupported. A local Origin/OriginPro
+application must expose a working Automation entry when rendering is requested.
 
 ## Permission preflight
 
@@ -103,6 +105,15 @@ Python, creates the project-local managed environment when required, installs on
 dependencies, and runs doctor again. The launcher itself does not install Python; the agent follows
 the explicit-consent process above if Python is absent. Environment setup never installs or modifies
 Origin. Users do not need to launch Origin before requesting a figure.
+
+On first use from an Apple Silicon macOS host, inspect the untracked local configuration. When
+`origin_home` is absent, tell the user to start and sign in to the Windows 11 ARM guest, then run
+repository-root `editaplot-parallels.sh`. It auto-selects only when exactly one VM exists and uses
+`prlctl exec <vm> --current-user`; the default channel runs as `SYSTEM` and must never drive Origin
+GUI/COM. If the current-user channel is stale, opening the guest's Coherence Windows PowerShell app
+once restores the interactive route in the normal case. Setup discovers Origin inside that guest
+and writes `origin_home` to `.editaplot-local.json`. If discovery is missing or ambiguous, ask for
+the installation directory and rerun with `--origin-home`; later calls inject the saved value.
 
 `--diagnose` reports launcher/Python discovery. Doctor separately reports Windows, engine, dependency,
 and local Origin Automation registration discovery. It is read-only and never launches Origin.

@@ -65,6 +65,27 @@ def test_smoke_command_can_keep_owned_instance_open(tmp_path: Path) -> None:
     assert command[-1] == "--keep-origin-open"
 
 
+def test_smoke_command_constrains_worker_to_user_selected_origin(
+    tmp_path: Path,
+) -> None:
+    origin_home = tmp_path / "Origin2024b"
+    origin_home.mkdir()
+    executable = origin_home / "Origin64.exe"
+    executable.touch()
+
+    _command, env, _root = core.build_origin_smoke_command(
+        output_dir=tmp_path / "smoke",
+        engine_home=RUNTIME,
+        origin_home=executable,
+    )
+
+    assert env[core.EXPECTED_ORIGIN_HOME_ENV] == str(origin_home.resolve())
+    path_key = next(key for key in env if key.casefold() == "path")
+    assert env[path_key].split(core.os.pathsep, maxsplit=1)[0] == str(
+        origin_home.resolve()
+    )
+
+
 def test_smoke_worker_emits_concise_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

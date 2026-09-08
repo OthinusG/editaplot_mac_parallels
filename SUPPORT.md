@@ -1,11 +1,13 @@
 # Support scope
 
-EditaPlot V1 supports physical Windows 10/11 x64 computers only. Its CLI and locked dependency
+EditaPlot's fully verified baseline is physical Windows 10/11 x64. Its CLI and locked dependency
 layer are covered on 64-bit CPython 3.10, 3.11, and 3.12; the live Origin end-to-end baseline is
 CPython 3.10 with Origin/OriginPro 2024b (10.15). Python 3.11/3.12 rendering still requires the
-same local full-artifact verification before a route is claimed. macOS (Intel or Apple Silicon),
-Linux, WSL, Wine/CrossOver, Parallels, and other virtual machines are outside the supported product
-boundary. Other Origin versions, custom templates, new LabTalk
+same local full-artifact verification before a route is claimed. Apple Silicon Parallels guests
+running Windows 11 on ARM are qualified for the compatibility route with x64 CPython and x64 Origin;
+Origin 2024 SR1 with CPython 3.12 has passed its real smoke and full-artifact checks. Setup persists
+the active guest Origin path for later commands. Intel Macs, Linux, WSL, Wine/CrossOver, and other virtual machines remain outside the
+supported product boundary. Other Origin versions, custom templates, new LabTalk
 parameters, and new 3D routes require separate verification.
 
 The launcher reuses an existing compatible Python and keeps packages in EditaPlot's project-local

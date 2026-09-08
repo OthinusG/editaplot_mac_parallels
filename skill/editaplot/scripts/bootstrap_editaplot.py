@@ -23,9 +23,11 @@ from typing import Any, BinaryIO
 
 from editaplot_core import (
     MANAGED_ENV_LOCK,
+    discover_origin_application,
     managed_environment_status,
     python_compatibility,
     resolve_engine_home,
+    resolve_origin_home,
     windows_host_compatibility,
 )
 
@@ -57,17 +59,26 @@ CLI_COMMANDS = frozenset(
         "install-skill",
     }
 )
+ORIGIN_COMMANDS = frozenset({"doctor", "origin-smoke", "render"})
 SUPPORTED_TABLE_SUFFIXES = frozenset({".csv", ".txt", ".xls", ".xlsx"})
 PROBE_CODE = (
-    "import json,platform,struct,sys;"
+    "import json,platform,struct,sys,sysconfig;"
     "print(json.dumps({'executable':sys.executable,'implementation':"
     "platform.python_implementation(),'version':list(sys.version_info[:3]),"
-    "'architecture_bits':struct.calcsize('P')*8}))"
+    "'architecture_bits':struct.calcsize('P')*8,'process_platform':"
+    "sysconfig.get_platform()}))"
 )
 
 
 def _emit(payload: dict[str, Any], *, stream: Any = sys.stdout) -> None:
-    print(json.dumps(payload, ensure_ascii=False, indent=2), file=stream, flush=True)
+    rendered = json.dumps(payload, ensure_ascii=False, indent=2)
+    encoding = getattr(stream, "encoding", None)
+    if encoding:
+        try:
+            rendered.encode(encoding)
+        except UnicodeEncodeError:
+            rendered = json.dumps(payload, ensure_ascii=True, indent=2)
+    print(rendered, file=stream, flush=True)
 
 
 @contextmanager
@@ -139,6 +150,42 @@ def _engine_argument(argv: list[str]) -> str | None:
     return None
 
 
+def _origin_argument(argv: list[str]) -> str | None:
+    for index, value in enumerate(argv):
+        if value == "--origin-home" and index + 1 < len(argv):
+            return argv[index + 1]
+        if value.startswith("--origin-home="):
+            return value.partition("=")[2]
+    return None
+
+
+def _apply_local_origin_home(argv: list[str], config: dict[str, Any]) -> list[str]:
+    if not argv or argv[0] not in ORIGIN_COMMANDS or _origin_argument(argv):
+        return list(argv)
+    origin_home = config.get("origin_home")
+    if not isinstance(origin_home, str) or not origin_home.strip():
+        return list(argv)
+    return [*argv, "--origin-home", origin_home]
+
+
+def _discover_origin_home() -> str | None:
+    state = discover_origin_application()
+    selected = state.get("path")
+    if not selected:
+        candidates = state.get("installed_candidates")
+        if isinstance(candidates, list) and len(candidates) == 1:
+            candidate = candidates[0]
+            if isinstance(candidate, dict):
+                selected = candidate.get("path")
+    if not isinstance(selected, str) or not selected.strip():
+        return None
+    try:
+        directory, _executable = resolve_origin_home(selected)
+    except Exception:
+        return None
+    return str(directory)
+
+
 def _normalize_cli_arguments(argv: list[str]) -> list[str]:
     """Turn a dropped/first-position table into the beginner ``start`` command."""
     if not argv or argv[0] in CLI_COMMANDS or argv[0].startswith("-"):
@@ -195,6 +242,7 @@ def _probe(command: list[str], *, source: str, detail: str) -> dict[str, Any]:
             version=tuple(int(part) for part in raw["version"]),
             implementation=str(raw["implementation"]),
             architecture_bits=int(raw["architecture_bits"]),
+            process_platform=str(raw["process_platform"]),
         )
     except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         return {**record, "usable": False, "reason": f"invalid_probe:{type(exc).__name__}"}
@@ -207,6 +255,7 @@ def _probe(command: list[str], *, source: str, detail: str) -> dict[str, Any]:
         "version_info": compatibility["version_info"],
         "implementation": compatibility["implementation"],
         "architecture_bits": compatibility["architecture_bits"],
+        "process_platform": str(raw["process_platform"]),
         "reasons": compatibility["reasons"],
     }
 
@@ -738,30 +787,49 @@ def _run_json_command(
     return int(completed.returncode), payload
 
 
-def _parse_setup_target(argv: list[str]) -> tuple[Path | None, dict[str, Any] | None]:
+def _parse_setup_options(
+    argv: list[str],
+) -> tuple[Path | None, str | None, dict[str, Any] | None]:
     target: Path | None = None
+    origin_home: str | None = None
     index = 0
     while index < len(argv):
         argument = argv[index]
         if argument == "--target":
             if target is not None:
-                return None, {"code": "setup_target_repeated"}
+                return None, None, {"code": "setup_target_repeated"}
             if index + 1 >= len(argv) or argv[index + 1].startswith("--"):
-                return None, {"code": "setup_target_missing"}
+                return None, None, {"code": "setup_target_missing"}
             target = Path(argv[index + 1]).expanduser()
             index += 2
             continue
         if argument.startswith("--target="):
             if target is not None:
-                return None, {"code": "setup_target_repeated"}
+                return None, None, {"code": "setup_target_repeated"}
             value = argument.partition("=")[2]
             if not value:
-                return None, {"code": "setup_target_missing"}
+                return None, None, {"code": "setup_target_missing"}
             target = Path(value).expanduser()
             index += 1
             continue
-        return None, {"code": "setup_argument_unknown", "argument": argument}
-    return target, None
+        if argument == "--origin-home":
+            if origin_home is not None:
+                return None, None, {"code": "setup_origin_home_repeated"}
+            if index + 1 >= len(argv) or argv[index + 1].startswith("--"):
+                return None, None, {"code": "setup_origin_home_missing"}
+            origin_home = argv[index + 1]
+            index += 2
+            continue
+        if argument.startswith("--origin-home="):
+            if origin_home is not None:
+                return None, None, {"code": "setup_origin_home_repeated"}
+            origin_home = argument.partition("=")[2]
+            if not origin_home:
+                return None, None, {"code": "setup_origin_home_missing"}
+            index += 1
+            continue
+        return None, None, {"code": "setup_argument_unknown", "argument": argument}
+    return target, origin_home, None
 
 
 def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
@@ -781,13 +849,29 @@ def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
             stream=sys.stderr,
         )
         return 3
-    target, argument_error = _parse_setup_target(argv)
+    target, requested_origin_home, argument_error = _parse_setup_options(argv)
     if argument_error is not None:
         _emit({"ok": False, "error": argument_error}, stream=sys.stderr)
         return 2
     if target is None:
         codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
         target = codex_home / "skills" / "editaplot"
+    explicit_origin_home: str | None = None
+    if requested_origin_home is not None:
+        try:
+            explicit_origin_home = str(resolve_origin_home(requested_origin_home)[0])
+        except Exception:
+            _emit(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "setup_origin_home_invalid",
+                        "message": "The selected directory must contain Origin64.exe.",
+                    },
+                },
+                stream=sys.stderr,
+            )
+            return 2
     if target.is_symlink():
         _emit(
             {
@@ -806,7 +890,10 @@ def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
         lock_path = target.parent / f".{target.name}.editaplot-setup.lock"
         try:
             with _exclusive_file_lock(lock_path, error_code="skill_setup_in_progress"):
-                return install_skill(["--target", str(target)], _lock_held=True)
+                locked_argv = ["--target", str(target)]
+                if explicit_origin_home is not None:
+                    locked_argv.extend(["--origin-home", explicit_origin_home])
+                return install_skill(locked_argv, _lock_held=True)
         except RuntimeError as exc:
             _emit(
                 {
@@ -901,11 +988,28 @@ def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
         )
         return 3
 
+    previous_config = _local_config() if same_as_source else {}
+    if not same_as_source and (target / LOCAL_CONFIG_NAME).is_file():
+        try:
+            loaded = json.loads((target / LOCAL_CONFIG_NAME).read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                previous_config = loaded
+        except (OSError, json.JSONDecodeError):
+            previous_config = {}
+    origin_home = explicit_origin_home or _discover_origin_home()
+    origin_home_source = "explicit" if explicit_origin_home is not None else "discovered"
+    if origin_home is None and isinstance(previous_config.get("origin_home"), str):
+        origin_home = str(previous_config["origin_home"])
+        origin_home_source = "preserved"
+    if origin_home is None:
+        origin_home_source = "unconfigured"
     local_config = {
         "schema_version": "1.0",
         "engine_home": str(engine_root),
         "generated_by": "EditaPlot setup",
     }
+    if origin_home is not None:
+        local_config["origin_home"] = origin_home
     copied = 0
     staging: Path | None = None
     if not same_as_source:
@@ -938,6 +1042,7 @@ def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
     environment = os.environ.copy()
     environment["EDITAPLOT_ENGINE_HOME"] = str(engine_root)
     environment["EDITAPLOT_BOOTSTRAP_SOURCE"] = str(selected["source"])
+    environment["PYTHONIOENCODING"] = "utf-8"
     current_compatibility = python_compatibility()
     repair_python = (
         str(Path(sys.executable).resolve())
@@ -1023,14 +1128,17 @@ def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
     )
     if environment_committed:
         post_python = str(managed_status["python_executable"])
+        doctor_command = [
+            post_python,
+            str(target_cli),
+            "doctor",
+            "--engine-home",
+            str(engine_root),
+        ]
+        if origin_home is not None:
+            doctor_command.extend(["--origin-home", origin_home])
         doctor_code, doctor_payload = _run_json_command(
-            [
-                post_python,
-                str(target_cli),
-                "doctor",
-                "--engine-home",
-                str(engine_root),
-            ],
+            doctor_command,
             environment=environment,
             timeout=120,
         )
@@ -1072,6 +1180,8 @@ def install_skill(argv: list[str], *, _lock_held: bool = False) -> int:
         "ready_for_analysis": bool(doctor_payload.get("ready_for_analysis")),
         "ready_for_render": bool(doctor_payload.get("ready_for_render")),
         "origin_installation_modified": False,
+        "origin_home_configured": origin_home is not None,
+        "origin_home_source": origin_home_source,
         "next_step": _setup_next_step(doctor_payload),
     }
     _emit(payload, stream=sys.stdout if environment_ready else sys.stderr)
@@ -1097,7 +1207,7 @@ def _setup_filesystem_failure(
 ) -> int:
     """Report a bounded setup write failure without a Python traceback."""
 
-    requested_target, _argument_error = _parse_setup_target(argv)
+    requested_target, _origin_home, _argument_error = _parse_setup_options(argv)
     if requested_target is None:
         codex_home = Path(
             os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))
@@ -1138,6 +1248,7 @@ def main(argv: list[str] | None = None) -> int:
             return _setup_filesystem_failure(arguments[1:], exc)
 
     engine_root, config = _resolve_engine(arguments)
+    arguments = _apply_local_origin_home(arguments, config)
     discovery = discover_python(engine_root)
     diagnostic = {
         "schema_version": "1.0",
@@ -1178,6 +1289,7 @@ def main(argv: list[str] | None = None) -> int:
     if engine_root is not None:
         environment["EDITAPLOT_ENGINE_HOME"] = str(engine_root)
     environment["EDITAPLOT_BOOTSTRAP_SOURCE"] = str(selected["source"])
+    environment["PYTHONIOENCODING"] = "utf-8"
     try:
         completed = subprocess.run(  # noqa: S603 - selected absolute Python and fixed local CLI
             [str(selected["executable"]), str(cli), *cli_arguments],

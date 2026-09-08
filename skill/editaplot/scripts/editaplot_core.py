@@ -13,6 +13,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import sysconfig
 import unicodedata
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
@@ -41,6 +42,7 @@ MANAGED_ENV_LOCK = ".editaplot-environment.lock"
 PYTHON_MIN_VERSION = (3, 10)
 PYTHON_MAX_VERSION_EXCLUSIVE = (3, 13)
 PYTHON_REQUIRED_BITS = 64
+EXPECTED_ORIGIN_HOME_ENV = "EDITAPLOT_EXPECTED_ORIGIN_HOME"
 RUNTIME_DEPENDENCIES = (
     ("numpy", "numpy==1.26.4"),
     ("pandas", "pandas==2.3.3"),
@@ -160,12 +162,14 @@ def windows_host_compatibility(
     *,
     system: str | None = None,
     machine: str | None = None,
+    process_platform: str | None = None,
     windows_major: int | None = None,
 ) -> dict[str, Any]:
     """Return the enforceable portion of the Windows 10/11 x64 support contract."""
 
     selected_system = system or platform.system()
     selected_machine = machine or platform.machine()
+    selected_process_platform = process_platform or sysconfig.get_platform()
     selected_major = windows_major
     if selected_system == "Windows" and selected_major is None:
         try:
@@ -177,7 +181,10 @@ def windows_host_compatibility(
     if selected_system != "Windows":
         reasons.append("windows_required")
     else:
-        if normalized_machine not in {"amd64", "x86_64"}:
+        x64_process = normalized_machine in {"amd64", "x86_64"} or (
+            selected_process_platform.strip().casefold() == "win-amd64"
+        )
+        if not x64_process:
             reasons.append("windows_x64_amd64_required")
         if selected_major is None:
             reasons.append("windows_version_unknown")
@@ -187,8 +194,9 @@ def windows_host_compatibility(
         "compatible": not reasons,
         "system": selected_system,
         "machine": selected_machine,
+        "process_platform": selected_process_platform,
         "windows_major": selected_major,
-        "required": "physical Windows 10/11 x64 (AMD64/x86_64)",
+        "required": "Windows 10/11 x64 process (AMD64/x86_64)",
         "virtual_machine_detection_performed": False,
         "reasons": reasons,
     }
@@ -201,6 +209,7 @@ def python_compatibility(
     architecture_bits: int | None = None,
     system: str | None = None,
     machine: str | None = None,
+    process_platform: str | None = None,
     windows_major: int | None = None,
 ) -> dict[str, Any]:
     """Return the single compatibility decision used by doctor, repair, and bootstrap.
@@ -216,6 +225,7 @@ def python_compatibility(
     host = windows_host_compatibility(
         system=system,
         machine=machine,
+        process_platform=process_platform,
         windows_major=windows_major,
     )
     reasons: list[str] = []
@@ -2485,6 +2495,48 @@ def validate_plan(plan: dict[str, Any]) -> None:
         raise EditaPlotError("source_changed", "The source file changed after planning.")
 
 
+def resolve_origin_home(origin_home: str | Path) -> tuple[Path, Path]:
+    """Resolve a user-selected Origin directory without changing registration."""
+
+    candidate = Path(origin_home).expanduser()
+    executable = (
+        candidate
+        if candidate.name.casefold() == "origin64.exe"
+        else candidate / "Origin64.exe"
+    )
+    try:
+        executable = executable.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise EditaPlotError(
+            "origin_home_invalid",
+            "The selected Origin installation does not contain Origin64.exe.",
+        ) from exc
+    if not executable.is_file() or executable.name.casefold() != "origin64.exe":
+        raise EditaPlotError(
+            "origin_home_invalid",
+            "The selected Origin installation does not contain Origin64.exe.",
+        )
+    return executable.parent, executable
+
+
+def _apply_origin_home_constraint(
+    environment: dict[str, str],
+    origin_home: str | Path | None,
+) -> None:
+    if origin_home is None:
+        return
+    directory, _executable = resolve_origin_home(origin_home)
+    environment[EXPECTED_ORIGIN_HOME_ENV] = str(directory)
+    path_key = next(
+        (key for key in environment if key.casefold() == "path"),
+        "PATH",
+    )
+    current_path = environment.get(path_key, "")
+    environment[path_key] = str(directory) + (
+        os.pathsep + current_path if current_path else ""
+    )
+
+
 def build_worker_command(
     plan: dict[str, Any],
     *,
@@ -2493,6 +2545,7 @@ def build_worker_command(
     python_executable: str | Path | None = None,
     output_dir: str | Path | None = None,
     close_origin: bool = False,
+    origin_home: str | Path | None = None,
 ) -> tuple[list[str], dict[str, str], Path]:
     execution = plan.get("execution")
     planned_engine_home = execution.get("engine_home") if isinstance(execution, dict) else None
@@ -2585,6 +2638,7 @@ def build_worker_command(
     source_path = str(root / "src")
     env["PYTHONPATH"] = source_path + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["PYTHONIOENCODING"] = "utf-8"
+    _apply_origin_home_constraint(env, origin_home)
     return command, env, root
 
 
@@ -2594,6 +2648,7 @@ def build_origin_smoke_command(
     engine_home: str | Path | None = None,
     python_executable: str | Path | None = None,
     keep_origin_open: bool = False,
+    origin_home: str | Path | None = None,
 ) -> tuple[list[str], dict[str, str], Path]:
     """Build a safe subprocess command for an isolated Origin smoke test."""
 
@@ -2612,6 +2667,7 @@ def build_origin_smoke_command(
     source_path = str(root / "src")
     env["PYTHONPATH"] = source_path + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["PYTHONIOENCODING"] = "utf-8"
+    _apply_origin_home_constraint(env, origin_home)
     return command, env, root
 
 
@@ -3175,7 +3231,7 @@ def repair_environment(*, engine_home: str | Path | None = None) -> dict[str, An
     if not host["compatible"]:
         raise EditaPlotError(
             "unsupported_windows_host",
-            "Automatic repair requires a physical Windows 10/11 x64 AMD64 host.",
+            "Automatic repair requires Windows 10/11 with an x64 AMD64 Python process.",
             host=host,
         )
     compatibility = python_compatibility()
@@ -3758,7 +3814,11 @@ def _public_origin_execution_context() -> dict[str, object]:
     }
 
 
-def doctor(*, engine_home: str | Path | None = None) -> dict[str, Any]:
+def doctor(
+    *,
+    engine_home: str | Path | None = None,
+    origin_home: str | Path | None = None,
+) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     host = windows_host_compatibility()
     compatibility = python_compatibility()
@@ -3800,6 +3860,22 @@ def doctor(*, engine_home: str | Path | None = None) -> dict[str, Any]:
         )
     )
     attach_registration_detected = bool(origin_application.get("attach_registration_detected", False))
+    origin_home_verified: bool | None = None
+    if origin_home is not None:
+        _requested_home, requested_executable = resolve_origin_home(origin_home)
+        registered_executable = origin_application.get("path")
+        origin_home_verified = bool(
+            registered_executable
+            and _same_origin_executable(requested_executable, str(registered_executable))
+        )
+        checks.append(
+            {
+                "name": "requested_origin_home",
+                "ok": origin_home_verified,
+                "value": str(requested_executable),
+                "required": "active Origin.Application registration must match Origin64.exe",
+            }
+        )
     checks.append(
         {
             "name": "origin_application",
@@ -3876,6 +3952,7 @@ def doctor(*, engine_home: str | Path | None = None) -> dict[str, Any]:
         and dependency_state["originpro"]
         and dependency_state["OriginExt"]
         and launch_registration_detected
+        and origin_home_verified is not False
     )
     missing_dependencies = [name for name in dependencies if not dependency_state[name]]
     checks.append(
@@ -3905,6 +3982,8 @@ def doctor(*, engine_home: str | Path | None = None) -> dict[str, Any]:
         manual_blockers.append("python_originpro_package_missing")
     if not dependency_state.get("OriginExt", False):
         manual_blockers.append("python_originext_package_missing")
+    if origin_home_verified is False:
+        manual_blockers.append("origin_installation_mismatch")
     if ready_render and requires_current_user_approval:
         summary_zh = (
             "环境已具备绘图前提；当前 Doctor 在 Codex 沙箱中运行，"
@@ -3947,6 +4026,7 @@ def doctor(*, engine_home: str | Path | None = None) -> dict[str, Any]:
         "requires_current_user_approval": requires_current_user_approval,
         "origin_execution_context": execution_context,
         "origin_application": origin_application,
+        "origin_home_verified": origin_home_verified,
         "origin_callability_check": "performed_during_render",
         "missing_python_dependencies": missing_dependencies,
         "automatic_repair": {

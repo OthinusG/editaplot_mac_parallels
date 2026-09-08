@@ -19,7 +19,7 @@
 我不希望它只是一套“替换数字”的静态模板，也不会让 Python 预览图冒充 Origin 成图。科学含义和最终选择始终由你决定；遇到把握不足的数据，EditaPlot 会把不确定的列单独列出来请你确认，不会擅自补列、拟合或推断结论。
 
 > [!WARNING]
-> **我目前只完成了 Windows 10/11 x64 实体电脑上的完整验证。** 因此 V1 暂未提供 macOS（Intel 与 Apple Silicon）、Linux、WSL、Wine/CrossOver、Parallels 或其他虚拟机版本。如果你使用 Mac，这一版暂时还不能完成 Origin 全流程；当前请换用 Windows 实体电脑，后续支持情况以 release 说明为准。
+> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels + Windows 11 ARM 已完成 x64 CPython 3.12、Origin 2024 SR1 的真实 smoke 与完整产物门禁。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录 VM，再由 `editaplot-parallels.sh` 发现并本地保存路径，后续命令自动复用。Origin 2024b（10.15）仍是唯一完整版本基线；Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
 
 > [!IMPORTANT]
 > 我已按 [Apache License 2.0](LICENSE) 开源 EditaPlot。当前兼容目标是 Origin/OriginPro 2021–2026b；你不必提前打开它，EditaPlot 会在绘图前自动启动一个专用实例。我不会替你安装或修改 Origin。
@@ -212,7 +212,7 @@ Origin 自动化阶段，其余任务自动等待。等待事件名为 `origin_j
 
 | 项目 | 你需要知道的事 |
 |---|---|
-| 系统 | 我目前完整验证的是 Windows 10/11 x64 实体电脑；Mac、Linux、WSL 与虚拟机版本暂未提供 |
+| 系统 | 完整验证基线是 Windows 10/11 x64 实体电脑；Apple Silicon Parallels + Windows 11 ARM 已通过 Origin 2024 SR1 实机工作流 |
 | Origin | 兼容目标为 Origin/OriginPro 2021–2026b；2024b（10.15）是当前唯一完整实机基线，其他目标版本会按本机握手、真实测试和模板能力报告 |
 | Python | 需要 64 位 Python 3.10–3.12；启动器会自动选择，你无需手动配置 |
 | 数据 | 你可以使用 CSV、TXT、XLS 或 XLSX，也可以保留中文列名与中文路径 |
@@ -282,6 +282,7 @@ $smokeDir = Join-Path $env:TEMP ("EditaPlot-origin-smoke-" + (Get-Date -Format "
 实例并完成最小导出闭环；只有 smoke 通过后才进入正式 render。日常使用可以忽略
 `--engine-home`；只有你主动替换内置引擎时才需要它。普通绘图请省略 `render` 的
 `--output-dir`，这样正式结果会自动保存到源数据同级的新文件夹。
+`setup` 已把发现到的 Origin 目录写入 Skill 本地配置；只有临时切换其他 Origin 版本时才需要显式传入 `--origin-home`。
 
 ### 3. 直接复制给 Codex 的提示词
 

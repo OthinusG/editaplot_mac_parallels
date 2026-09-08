@@ -473,6 +473,49 @@ def test_doctor_reports_codex_sandbox_as_an_approval_step_not_manual_setup(
     assert "codex_sandbox" not in report["manual_blockers"]
 
 
+def test_doctor_verifies_user_selected_origin_registration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = _origin_executable(tmp_path, "Origin2024b")
+    registry = FakeWinreg()
+    registry.add_com(
+        progid="Origin.Application",
+        clsid="{LAUNCH}",
+        executable=executable,
+    )
+    _install_fake_registry(monkeypatch, registry)
+    _prepare_doctor_dependencies(monkeypatch, tmp_path)
+
+    report = core.doctor(engine_home=tmp_path, origin_home=executable.parent)
+
+    assert report["ready_for_render"] is True
+    assert report["origin_home_verified"] is True
+    assert "origin_installation_mismatch" not in report["manual_blockers"]
+
+
+def test_doctor_blocks_different_registered_origin_than_user_selected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registered = _origin_executable(tmp_path, "Origin2024b")
+    requested = _origin_executable(tmp_path, "Origin2025b")
+    registry = FakeWinreg()
+    registry.add_com(
+        progid="Origin.Application",
+        clsid="{LAUNCH}",
+        executable=registered,
+    )
+    _install_fake_registry(monkeypatch, registry)
+    _prepare_doctor_dependencies(monkeypatch, tmp_path)
+
+    report = core.doctor(engine_home=tmp_path, origin_home=requested)
+
+    assert report["ready_for_render"] is False
+    assert report["origin_home_verified"] is False
+    assert "origin_installation_mismatch" in report["manual_blockers"]
+
+
 @pytest.mark.parametrize(
     ("status", "expected_context_ready"),
     [

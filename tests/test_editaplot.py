@@ -1095,22 +1095,24 @@ def test_python_compatibility_rejects_unverified_runtimes(
 
 
 @pytest.mark.parametrize(
-    ("system", "machine", "windows_major", "reason"),
+    ("system", "machine", "process_platform", "windows_major", "reason"),
     [
-        ("Darwin", "x86_64", None, "windows_required"),
-        ("Windows", "ARM64", 11, "windows_x64_amd64_required"),
-        ("Windows", "AMD64", 6, "windows_10_or_newer_required"),
+        ("Darwin", "x86_64", "macosx-arm64", None, "windows_required"),
+        ("Windows", "ARM64", "win-arm64", 11, "windows_x64_amd64_required"),
+        ("Windows", "AMD64", "win-amd64", 6, "windows_10_or_newer_required"),
     ],
 )
 def test_windows_host_gate_rejects_unsupported_hosts(
     system: str,
     machine: str,
+    process_platform: str,
     windows_major: int | None,
     reason: str,
 ) -> None:
     host = windows_host_compatibility(
         system=system,
         machine=machine,
+        process_platform=process_platform,
         windows_major=windows_major,
     )
     runtime = python_compatibility(
@@ -1119,6 +1121,7 @@ def test_windows_host_gate_rejects_unsupported_hosts(
         architecture_bits=64,
         system=system,
         machine=machine,
+        process_platform=process_platform,
         windows_major=windows_major,
     )
 
@@ -1458,6 +1461,7 @@ def test_doctor_hard_rejects_arm64_windows_host(monkeypatch: pytest.MonkeyPatch)
     host = windows_host_compatibility(
         system="Windows",
         machine="ARM64",
+        process_platform="win-arm64",
         windows_major=11,
     )
     versions = {
@@ -1491,6 +1495,7 @@ def test_setup_hard_rejects_unsupported_windows_host(
     host = windows_host_compatibility(
         system="Windows",
         machine="ARM64",
+        process_platform="win-arm64",
         windows_major=11,
     )
     monkeypatch.setattr(bootstrap, "windows_host_compatibility", lambda: host)

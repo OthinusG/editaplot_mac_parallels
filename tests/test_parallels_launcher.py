@@ -5,6 +5,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.skipif(os.name == "nt", reason="macOS POSIX launcher test")
+
 
 def test_first_use_runs_setup_only_through_current_user(tmp_path: Path) -> None:
     home = tmp_path / "home"

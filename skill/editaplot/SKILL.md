@@ -185,8 +185,9 @@ installs it for the signed-in Windows user before continuing offline setup.
     location. On the Apple Silicon Parallels route, reuse the setup-persisted Origin path.
     When the user supplies an OPJU as a visual format template, add
     `--format-template-opju <template.opju>` to `render` and keep that file read-only. After drawing,
-    the worker copies all properties from the template's active graph page (or first graph page)
-    COM `Theme` tree to the rendered graph, then saves and exports OPJU/PNG/PDF/TIF again. This
+    the worker runs Origin's native page-level `Copy Format: All` on the template's active graph
+    page (or first graph page), then `Paste Format` on the rendered graph before saving and
+    exporting OPJU/PNG/PDF/TIF again. This
     transfers graph formatting only, not template data, worksheets, analyses, or annotations.
 16. Run `editaplot.cmd verify <output-directory>` against that source-adjacent folder and perform
     human visual QA. If smoke or render fails, a Python preview or standalone PNG/PDF/SVG is only

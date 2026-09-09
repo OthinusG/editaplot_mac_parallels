@@ -24,7 +24,7 @@ from origin_sciplot.workers.run_template_worker import (  # noqa: E402
 )
 
 
-def test_apply_opju_format_template_uses_com_theme_and_reexports(
+def test_apply_opju_format_template_uses_origin_copy_paste_and_reexports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -34,21 +34,15 @@ def test_apply_opju_format_template_uses_com_theme_and_reexports(
     result_opju.write_bytes(b"rendered")
     report_path = tmp_path / "origin_verify_report.json"
     report_path.write_text("{}", encoding="utf-8")
-    theme = object()
-    assigned: list[object] = []
+    commands: list[tuple[str, str]] = []
 
     class PageObject:
         def __init__(self, source: bool) -> None:
             self.source = source
 
-        @property
-        def Theme(self) -> object:  # noqa: N802 - Origin COM name
-            assert self.source
-            return theme
-
-        @Theme.setter
-        def Theme(self, value: object) -> None:  # noqa: N802 - Origin COM name
-            assigned.append(value)
+        def LT_execute(self, command: str) -> bool:  # noqa: N802 - Origin COM name
+            commands.append(("source" if self.source else "target", command))
+            return True
 
     class Graph:
         def __init__(self, name: str, source: bool = False) -> None:
@@ -102,11 +96,14 @@ def test_apply_opju_format_template_uses_com_theme_and_reexports(
 
     _apply_opju_format_template(template, "abc123", result, output)
 
-    assert assigned == [theme]
+    assert commands == [
+        ("source", "run.section(file,FmtsCopyAll);"),
+        ("target", "run.section(file,PasteFormats);"),
+    ]
     assert result["verify"]["format_template"] == {
         "applied": True,
         "scope": "all",
-        "source": "opju_graph_page_theme",
+        "source": "origin_builtin_copy_paste_format",
         "sha256": "abc123",
     }
     assert json.loads(report_path.read_text(encoding="utf-8")) == result["verify"]

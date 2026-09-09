@@ -231,8 +231,8 @@ After `plan`, the required formal sequence is `origin-smoke → render → verif
 because Doctor reported `ready_for_render`.
 
 `--format-template-opju` is an optional post-draw graph-format operation. The worker hashes the
-read-only OPJU before Origin, copies all properties from its active graph page (falling back to the
-first graph page), applies that COM Theme tree to the rendered graph, and regenerates the saved OPJU
+read-only OPJU before Origin, runs Origin's native page-level `Copy Format: All` on its active graph
+page (falling back to the first graph page), runs `Paste Format` on the rendered graph, and regenerates the saved OPJU
 and image exports. It does not merge template data, worksheets, analyses, or annotations into the
 result. A template without a graph page fails closed.
 

@@ -207,7 +207,7 @@ def _apply_opju_format_template(
     result: Any,
     output: RunOutput,
 ) -> None:
-    """Copy the template page's full COM Theme tree onto the rendered graph."""
+    """Run Origin's native page-level Copy Format: All and Paste Format actions."""
 
     if not isinstance(result, dict) or not isinstance(result.get("verify"), dict):
         raise OriginDrawError(
@@ -227,16 +227,17 @@ def _apply_opju_format_template(
         source = _current_or_first_graph(op)
         if source is None:
             raise RuntimeError("template graph unavailable")
-        theme = source.obj.Theme
-        if theme is None:
-            raise RuntimeError("template theme unavailable")
+        source.activate()
+        if not source.obj.LT_execute("run.section(file,FmtsCopyAll);"):
+            raise RuntimeError("template format copy failed")
         if not op.open(str(output.result_opju), readonly=False, asksave=False):
             raise RuntimeError("rendered project unavailable")
         target = op.find_graph(target_name) or _current_or_first_graph(op)
         if target is None:
             raise RuntimeError("rendered graph unavailable")
-        target.obj.Theme = theme
         target.activate()
+        if not target.obj.LT_execute("run.section(file,PasteFormats);"):
+            raise RuntimeError("rendered graph format paste failed")
         op.lt_exec("doc -uw;")
         if not op.save(str(output.result_opju)):
             raise RuntimeError("formatted project save failed")
@@ -258,7 +259,7 @@ def _apply_opju_format_template(
     report = {
         "applied": True,
         "scope": "all",
-        "source": "opju_graph_page_theme",
+        "source": "origin_builtin_copy_paste_format",
         "sha256": expected_digest,
     }
     result["verify"]["exports"] = exports

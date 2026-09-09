@@ -290,8 +290,8 @@
     },
     {
       "path": "src/origin_sciplot/workers/run_template_worker.py",
-      "size_bytes": 48161,
-      "sha256": "08374e4ab317f717627cec482f52e2328dd018fe93b97fcd9b04a6043c9572c0"
+      "size_bytes": 48325,
+      "sha256": "b18f9942f947fdb5d16fe33f99d5d383aaf58c7aae3b3fa4fe9ab83e485705b2"
     },
     {
       "path": "src/origin_sciplot/xps_adaptive.py",

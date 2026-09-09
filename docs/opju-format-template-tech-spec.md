@@ -12,8 +12,8 @@ again.
 - CLI: `editaplot.cmd render <plan> --format-template-opju <template.opju>`.
 - The CLI records the template SHA-256 in the worker command; the worker verifies it before Origin.
 - The source `.opju` is never modified or copied into the delivery directory.
-- The Origin COM page `Theme` tree is the copy/paste transport. The target project is reopened,
-  formatted, saved, and exported before artifact verification.
+- Origin's built-in page-level `Copy Format: All` and `Paste Format` actions are the transport. The
+  target project is reopened, formatted, saved, and exported before artifact verification.
 - The final verification report records the template digest and successful application without a
   local template path.
 

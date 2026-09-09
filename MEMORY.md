@@ -14,9 +14,9 @@
 - Public releases contain no Origin path. On first Skill use, the agent asks the user to start and sign in to the Windows guest, then setup discovers Origin and persists `origin_home` in the untracked `.editaplot-local.json`. When discovery is absent or ambiguous, `setup --origin-home` validates and persists the user-confirmed path. Later Doctor, smoke, and render calls reuse it; their explicit `--origin-home` remains a one-call override.
 - Preserve the existing handshake, safety, redaction, and artifact-verification contracts when evaluating virtual-machine support.
 - Optional OPJU format templates use `render --format-template-opju`: the worker hash-binds the
-  read-only file, draws normally, transfers the source graph page's complete COM Theme tree to the
-  result, then resaves and re-exports. This route still requires a real Windows Origin smoke test
-  before compatibility can be claimed.
+  read-only file, draws normally, runs Origin's native page-level `Copy Format: All` and `Paste
+  Format` actions, then resaves and re-exports. Direct COM Theme assignment is not equivalent and
+  can return without applying visible formatting.
 - The user's downstream repository is `https://github.com/OthinusG/editaplot_mac_parallels`. It keeps
   its GitHub Fork relationship. `upstream-main` is an exact upstream mirror; `main` is the published
   upstream-plus-Parallels integration branch. Scheduled synchronization tests a temporary candidate

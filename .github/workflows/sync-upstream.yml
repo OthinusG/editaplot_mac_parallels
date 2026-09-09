@@ -1,4 +1,5 @@
 name: Sync upstream
+run-name: Sync upstream (${{ github.event_name }})
 
 on:
   push:

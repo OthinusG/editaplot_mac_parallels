@@ -13,6 +13,7 @@
   </p>
   <p><a href="README.en.md">English</a> · 中文为主要说明语言</p>
 </div>
+
 > [!WARNING]
 > **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels Desktop + Windows 11 ARM 已完成握手测试。 测试环境为 CPython 3.12、Origin 2024 SR1。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录虚拟机，再由agent在 macOS 下载锁定的 Windows wheels，发现并本地保存 Origin 路径。若 guest 缺少兼容 Python，只有用户明确同意后，脚本才会直接从宿主机下载、双重校验并在虚拟机安装官方 x64 Windows CPython。Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。提供完整Windows 11 on ARM + Office 16 + Origin 2024 SR1 + CPython 3.12的精简虚拟机文件，可解压后在parallels desktop中解包使用。
 

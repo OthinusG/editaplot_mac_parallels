@@ -13,13 +13,13 @@
   </p>
   <p><a href="README.en.md">English</a> · 中文为主要说明语言</p>
 </div>
+> [!WARNING]
+> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels Desktop + Windows 11 ARM 已完成握手测试。 测试环境为 CPython 3.12、Origin 2024 SR1。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录虚拟机，再由agent在 macOS 下载锁定的 Windows wheels，发现并本地保存 Origin 路径。若 guest 缺少兼容 Python，只有用户明确同意后，脚本才会直接从宿主机下载、双重校验并在虚拟机安装官方 x64 Windows CPython。Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。提供完整Windows 11 on ARM + Office 16 + Origin 2024 SR1 + CPython 3.12的精简虚拟机文件，可解压后在parallels desktop中解包使用。
 
 我把 EditaPlot 做成了一个面向 Codex 的 Windows 本地科研绘图 Skill。你把自己的实验数据交给它后，它会依次理解数据、逐列说明用途、推荐图形、请你确认图形元素、调用 Origin 并验证结果，最后生成**可编辑 OPJU**，同时导出 PNG、PDF、TIF。
 
 我不希望它只是一套“替换数字”的静态模板，也不会让 Python 预览图冒充 Origin 成图。科学含义和最终选择始终由你决定；遇到把握不足的数据，EditaPlot 会把不确定的列单独列出来请你确认，不会擅自补列、拟合或推断结论。
 
-> [!WARNING]
-> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels + Windows 11 ARM 已完成 x64 CPython 3.12、Origin 2024 SR1 的真实 smoke 与完整产物门禁。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录 VM，再由 `editaplot-parallels.sh` 在 macOS 下载锁定的 Windows wheels、离线配置 guest、发现并本地保存 Origin 路径。若 guest 缺少兼容 Python，只有用户明确同意后，脚本才会从 macOS 下载、双重校验并安装官方 x64 Windows CPython。Origin 2024b（10.15）仍是唯一完整版本基线；Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
 
 > [!IMPORTANT]
 > 我已按 [Apache License 2.0](LICENSE) 开源 EditaPlot。当前兼容目标是 Origin/OriginPro 2021–2026b；你不必提前打开它，EditaPlot 会在绘图前自动启动一个专用实例。我不会替你安装或修改 Origin。

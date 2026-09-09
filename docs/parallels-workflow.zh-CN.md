@@ -141,6 +141,15 @@ setup 保存的默认值。
 Skill、复用或重建锁定环境、重新探测活动 Origin，并运行 Doctor。普通 `doctor`、smoke 和 render
 不会修改 Origin 注册表、DCOM、防火墙或安装目录。
 
-下游仓库通过 `.github/workflows/sync-upstream.yml` 每日获取并合并
-`hang-jin/editaplot:main`，也可在 GitHub Actions 页面手动触发。无冲突时更新直接进入下游 `main`；
-发生冲突时工作流失败且不会推送半成品，需要在本地解决冲突并完成测试后再推送。
+下游仓库保留 Fork 关系，但把上游源码和 Parallels 扩展分开管理：
+
+- `upstream-main` 精确镜像 `hang-jin/editaplot:main`，不包含 Parallels 修改。
+- `main` 是发布分支，保留上游源码之上的 Parallels 提交。
+- `automation/upstream-sync` 是一次同步使用的临时候选分支。
+
+`.github/workflows/sync-upstream.yml` 每日运行，也可手动触发。它先更新 `upstream-main`，再把
+上游提交合并到临时候选分支；候选必须在 Windows 上通过 CPython 3.10、3.11、3.12 的完整测试、
+控制面 lint 和公开发布审计，之后才允许以 fast-forward 更新 `main`。无更新时不产生提交。
+合并冲突、测试失败、审计失败或测试期间 `main` 被其他提交更新时，发布分支保持不变；候选分支
+在流程结束后自动删除。真实 Origin smoke 仍是本地兼容性门禁，GitHub CI 不会把静态测试包装成
+Origin 实机验证。

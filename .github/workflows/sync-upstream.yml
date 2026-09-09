@@ -13,18 +13,86 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync:
+  prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.candidate.outputs.changed }}
+      base_sha: ${{ steps.candidate.outputs.base_sha }}
+      candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out published branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: main
 
-      - name: Merge upstream main
+      - name: Mirror upstream and prepare candidate
+        id: candidate
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add upstream https://github.com/hang-jin/editaplot.git
-          git fetch upstream main
-          git merge --no-edit upstream/main
-          git push origin HEAD:main
+          git fetch --no-tags upstream main
+          git fetch --no-tags origin \
+            '+refs/heads/upstream-main:refs/remotes/origin/upstream-main' || true
+          git push --force-with-lease origin \
+            refs/remotes/upstream/main:refs/heads/upstream-main
+
+          base_sha=$(git rev-parse HEAD)
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor refs/remotes/upstream/main HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git merge --no-edit refs/remotes/upstream/main
+          git fetch --no-tags origin \
+            '+refs/heads/automation/upstream-sync:refs/remotes/origin/automation/upstream-sync' || true
+          git push --force-with-lease origin HEAD:refs/heads/automation/upstream-sync
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: automation/upstream-sync
+
+  promote:
+    needs: [prepare, verify]
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out published branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Promote verified candidate
+        shell: bash
+        run: |
+          git fetch --no-tags origin \
+            '+refs/heads/automation/upstream-sync:refs/remotes/origin/automation/upstream-sync'
+          test "$(git rev-parse HEAD)" = "${{ needs.prepare.outputs.base_sha }}"
+          test "$(git rev-parse refs/remotes/origin/automation/upstream-sync)" = \
+            "${{ needs.prepare.outputs.candidate_sha }}"
+          git push origin "${{ needs.prepare.outputs.candidate_sha }}:refs/heads/main"
+
+  cleanup:
+    needs: [prepare, verify, promote]
+    if: always() && needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out published branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - name: Delete temporary candidate
+        run: git push origin --delete automation/upstream-sync

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-09 — Gated upstream synchronization
+
+- Kept the GitHub Fork relationship while separating an exact `upstream-main` mirror from the
+  published upstream-plus-Parallels `main` branch.
+- Made scheduled updates pass the full Windows CPython 3.10–3.12 test matrix, control-surface lint,
+  and public-release audit on a temporary candidate before `main` can advance.
+
 ## 2026-09-09 — Offline Parallels bootstrap
 
 - Fixed first-time setup for offline guests by downloading the selected CPython minor's locked

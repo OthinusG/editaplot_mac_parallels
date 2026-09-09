@@ -12,6 +12,14 @@ No `.editaplot-local.json` or machine-specific path is shipped. `editaplot.cmd s
 
 Subsequent `doctor`, `origin-smoke`, and `render` calls automatically use the persisted value. An explicit `--origin-home` on a command overrides the persisted default for that invocation. Updating the Skill preserves the previous value when Origin discovery is temporarily unavailable.
 
+## Offline dependency bootstrap
+
+The Windows guest does not need network access. Before first setup, the macOS launcher obtains the
+selected guest CPython minor from the dependency-free diagnostic command, downloads the exact
+locked `win_amd64` wheels into the macOS user cache, and exposes that directory through Parallels
+Home sharing. Guest setup runs with `PIP_NO_INDEX=1` and `PIP_FIND_LINKS` pointing at that cache.
+The cache is reusable and contains no Origin path or user data.
+
 ## CLI contract
 
 The following commands accept an optional explicit installation constraint:
@@ -51,6 +59,7 @@ Successful environment and compatibility reports include `origin_home_verified: 
 - Public release artifacts contain neither `.editaplot-local.json` nor an Origin installation path.
 - First use stops until the user has started and signed in to the guest; the macOS launcher uses only `--current-user`.
 - `setup --origin-home` validates and persists the path supplied after unsuccessful or ambiguous discovery.
+- First setup downloads only the selected guest Python minor's locked `win_amd64` wheels on macOS and installs them in the offline guest without contacting an index.
 - Explicit per-command `--origin-home` overrides the persisted default.
 
 ## Verification

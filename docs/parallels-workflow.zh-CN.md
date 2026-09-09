@@ -52,7 +52,11 @@ Origin 候选；多个未激活候选不会猜测。更新 Skill 时若注册信
 
 ## 离线 Windows VM
 
-VM 不需要联网。可在 macOS 下载 Python 官方 x64 安装包和 Windows wheelhouse，再通过共享目录使用：
+VM 不需要联网。首次配置时，`editaplot-parallels.sh` 会先读取 guest 已安装的 x64 CPython 小版本，
+再由 macOS 自动下载对应的锁定 `win_amd64` wheels 到用户缓存。随后 guest setup 使用
+`PIP_NO_INDEX=1` 从 Parallels 共享目录离线安装，不会访问 Python 包索引。
+
+下面的手动命令只用于排查自动下载：
 
 ```bash
 python3 -m pip download \
@@ -65,7 +69,7 @@ python3 -m pip download \
   --requirement requirements-runtime.lock
 ```
 
-在 Windows 安装 Python 后，用共享 wheelhouse 运行 setup：
+在 Windows 安装 Python 后，也可以手动用共享 wheelhouse 运行 setup：
 
 ```cmd
 set PIP_NO_INDEX=1

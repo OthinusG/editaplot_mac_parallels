@@ -43,6 +43,10 @@ installation directory and rerun the script with `--origin-home`; never put that
 documentation, a commit, or a release artifact. If the current-user channel returns `Invalid
 argument`, open that guest's Coherence Windows PowerShell app once, confirm Windows is logged in,
 and retry. Later calls use the installed launcher and persisted path without asking again.
+The launcher also handles an offline guest: it detects the selected x64 CPython minor, downloads
+that minor's locked `win_amd64` wheels on macOS, and makes setup install only from the shared local
+wheelhouse. Do not ask the user to enable guest networking for dependency installation, and never
+run first-time `editaplot.cmd setup` directly in the guest on the Parallels route.
 
 1. Reject unsupported platforms before installing anything. Support the CLI/dependency layer on
    physical Windows 10/11 x64 or an Apple Silicon Parallels Windows 11 ARM guest, always using x64
@@ -58,8 +62,10 @@ and retry. Later calls use the installed launcher and persisted path without ask
    use the repository-root `editaplot.cmd`. Use an absolute launcher path in commands. Do not make
    beginners select a Python executable or invoke `scripts/editaplot.py` directly.
 3. Require the complete repository for first installation. Run repository-root
-   `editaplot.cmd setup`; never instruct users to copy only `skill/editaplot`, because that omits
-   the runtime. Read `references/runtime.md` for setup, discovery, and command details.
+   `editaplot.cmd setup` on physical Windows. On Apple Silicon Parallels, run only repository-root
+   `editaplot-parallels.sh` from macOS so an offline guest receives the host-downloaded wheelhouse.
+   Never instruct users to copy only `skill/editaplot`, because that omits the runtime. Read
+   `references/runtime.md` for setup, discovery, and command details.
 4. Reuse an existing compatible Python. If none exists, explain in Chinese that installing Python
    is a system-level change. Run `winget show` first and explain the exact publisher, source, and
    agreements. Only explicit user confirmation permits a later non-interactive installation of

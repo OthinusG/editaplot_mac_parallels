@@ -114,6 +114,11 @@ GUI/COM. If the current-user channel is stale, opening the guest's Coherence Win
 once restores the interactive route in the normal case. Setup discovers Origin inside that guest
 and writes `origin_home` to `.editaplot-local.json`. If discovery is missing or ambiguous, ask for
 the installation directory and rerun with `--origin-home`; later calls inject the saved value.
+When the managed environment is absent, the macOS launcher reads the selected guest CPython minor
+from `--diagnose`, downloads its locked `win_amd64` wheels into the macOS user cache, and runs guest
+setup with `PIP_NO_INDEX=1` plus the shared cache as `PIP_FIND_LINKS`. The guest remains offline.
+Do not invoke first-time guest setup directly on this route; doing so would make pip use the guest's
+unavailable package index instead of the host wheelhouse.
 
 `--diagnose` reports launcher/Python discovery. Doctor separately reports Windows, engine, dependency,
 and local Origin Automation registration discovery. It is read-only and never launches Origin.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-09 — Offline Parallels bootstrap
+
+- Fixed first-time setup for offline guests by downloading the selected CPython minor's locked
+  Windows wheels on macOS and forcing guest pip to use only the shared wheelhouse.
+
 ## 2026-09-08 — Explicit Origin handshake for Apple Silicon Parallels
 
 - Added an Apple Silicon macOS launcher and an unbound first-use flow: public releases contain no

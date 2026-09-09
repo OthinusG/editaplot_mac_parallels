@@ -19,7 +19,7 @@
 我不希望它只是一套“替换数字”的静态模板，也不会让 Python 预览图冒充 Origin 成图。科学含义和最终选择始终由你决定；遇到把握不足的数据，EditaPlot 会把不确定的列单独列出来请你确认，不会擅自补列、拟合或推断结论。
 
 > [!WARNING]
-> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels + Windows 11 ARM 已完成 x64 CPython 3.12、Origin 2024 SR1 的真实 smoke 与完整产物门禁。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录 VM，再由 `editaplot-parallels.sh` 发现并本地保存路径，后续命令自动复用。Origin 2024b（10.15）仍是唯一完整版本基线；Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
+> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels + Windows 11 ARM 已完成 x64 CPython 3.12、Origin 2024 SR1 的真实 smoke 与完整产物门禁。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录 VM，再由 `editaplot-parallels.sh` 在 macOS 下载锁定的 Windows wheels、离线配置 guest、发现并本地保存 Origin 路径，后续命令自动复用。Origin 2024b（10.15）仍是唯一完整版本基线；Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
 
 > [!IMPORTANT]
 > 我已按 [Apache License 2.0](LICENSE) 开源 EditaPlot。当前兼容目标是 Origin/OriginPro 2021–2026b；你不必提前打开它，EditaPlot 会在绘图前自动启动一个专用实例。我不会替你安装或修改 Origin。

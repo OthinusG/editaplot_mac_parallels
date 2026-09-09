@@ -28,12 +28,23 @@ def test_first_use_runs_setup_only_through_current_user(tmp_path: Path) -> None:
         "case \"$1\" in\n"
         "  list) printf 'Windows 11\\n' ;;\n"
         "  status) printf 'running\\n' ;;\n"
-        f"  exec) printf '%s\\n' \"$*\" >> '{log}' ;;\n"
+        f"  exec) printf '%s\\n' \"$*\" >> '{log}'; "
+        "case \"$*\" in *--diagnose*) "
+        "printf '{\"selected\":{\"version_info\":[3,12,10]}}\\n';; esac ;;\n"
+        "esac\n",
+        encoding="utf-8",
+    )
+    (bin_dir / "python3").write_text(
+        "#!/bin/sh\n"
+        "case \"$1\" in\n"
+        "  -c) printf '12\\n' ;;\n"
+        "  -m) exit 0 ;;\n"
         "esac\n",
         encoding="utf-8",
     )
     os.chmod(bin_dir / "uname", 0o700)
     os.chmod(bin_dir / "prlctl", 0o700)
+    os.chmod(bin_dir / "python3", 0o700)
 
     completed = subprocess.run(
         ["/bin/sh", str(launcher)],
@@ -48,4 +59,6 @@ def test_first_use_runs_setup_only_through_current_user(tmp_path: Path) -> None:
     invocation = log.read_text(encoding="utf-8")
     assert "--current-user" in invocation
     assert " setup --target " in invocation
+    assert "PIP_NO_INDEX=1" in invocation
+    assert "PIP_FIND_LINKS=" in invocation
     assert "Origin was not uniquely discovered" in completed.stderr

@@ -71,6 +71,7 @@ repo_guest=$(to_guest_path "$relative_repo")
 skill_relative='.codex/skills/editaplot'
 skill_guest=$(to_guest_path "$skill_relative")
 local_config="$HOME/$skill_relative/.editaplot-local.json"
+managed_fingerprint="$script_dir/runtime/.editaplot-venv/.editaplot-environment.json"
 win_sep=$(printf '\\')
 
 validate_cmd_text() {
@@ -88,8 +89,35 @@ if [ -f "$local_config" ] && grep -Eq '"origin_home"[[:space:]]*:[[:space:]]*"[^
     configured=true
 fi
 
-if [ "$configured" = false ] || [ -n "$origin_home" ]; then
-    setup_line="\"$repo_guest${win_sep}editaplot.cmd\" setup --target \"$skill_guest\""
+if [ "$configured" = false ] || [ ! -f "$managed_fingerprint" ] || [ -n "$origin_home" ]; then
+    command -v python3 >/dev/null 2>&1 || fail 'macOS python3 is required to download the offline wheelhouse.' 3
+    diagnostic_line="\"$repo_guest${win_sep}editaplot.cmd\" --diagnose"
+    diagnostic=$(run_guest_line "$diagnostic_line") ||
+        fail 'A compatible x64 CPython 3.10-3.12 installation was not found in Windows.' 4
+    python_minor=$(printf '%s' "$diagnostic" | python3 -c \
+        'import json,sys; print(json.load(sys.stdin)["selected"]["version_info"][1])') ||
+        fail 'The guest Python diagnostic could not be parsed.' 4
+    case "$python_minor" in
+        10|11|12) ;;
+        *) fail 'The selected guest Python version is not supported.' 4 ;;
+    esac
+
+    wheelhouse_relative="Library/Caches/EditaPlot/wheelhouse/cp3$python_minor"
+    wheelhouse="$HOME/$wheelhouse_relative"
+    mkdir -p "$wheelhouse"
+    printf 'Downloading locked Windows wheels on macOS for CPython 3.%s...\n' "$python_minor" >&2
+    python3 -m pip download \
+        --dest "$wheelhouse" \
+        --only-binary=:all: \
+        --platform win_amd64 \
+        --implementation cp \
+        --python-version "3$python_minor" \
+        --abi "cp3$python_minor" \
+        --requirement "$script_dir/requirements-runtime.lock" ||
+        fail 'macOS could not download the locked Windows wheelhouse.' 4
+
+    wheelhouse_guest=$(to_guest_path "$wheelhouse_relative")
+    setup_line="set \"PIP_NO_INDEX=1\" && set \"PIP_FIND_LINKS=$wheelhouse_guest\" && \"$repo_guest${win_sep}editaplot.cmd\" setup --target \"$skill_guest\""
     if [ -n "$origin_home" ]; then
         validate_cmd_text "$origin_home"
         setup_line="$setup_line --origin-home \"$origin_home\""

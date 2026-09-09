@@ -52,8 +52,18 @@ Origin 候选；多个未激活候选不会猜测。更新 Skill 时若注册信
 
 ## 离线 Windows VM
 
-VM 不需要联网。首次配置时，`editaplot-parallels.sh` 会先读取 guest 已安装的 x64 CPython 小版本，
-再由 macOS 自动下载对应的锁定 `win_amd64` wheels 到用户缓存。随后 guest setup 使用
+VM 不需要联网。macOS 已有的 CPython 只能负责下载，不能在 Windows 中加载 `originpro` 或
+`OriginExt`，因此 guest 仍需要 x64 Windows CPython。首次配置会先只读探测；如果没有兼容版本，
+脚本会停止，Agent 必须说明这是 Windows 用户范围的软件安装并取得明确同意，然后才运行：
+
+```bash
+./editaplot-parallels.sh --vm "<vm-name>" --install-python
+```
+
+该命令在 macOS 下载锁定的 python.org x64 安装器，核对 SHA-256，再在 Windows 当前用户会话核对
+Python Software Foundation 的有效 Authenticode 签名并静默安装；不使用管理员权限，不启用 guest
+网络。随后脚本重新读取 guest 的 x64 CPython 小版本，由 macOS 自动下载对应的锁定 `win_amd64`
+wheels 到用户缓存。guest setup 使用
 `PIP_NO_INDEX=1` 从 Parallels 共享目录离线安装，不会访问 Python 包索引。
 
 下面的手动命令只用于排查自动下载：
@@ -77,8 +87,9 @@ set PIP_FIND_LINKS=<wheelhouse-file-url>
 editaplot.cmd setup --target <shared-codex-skill-directory>
 ```
 
-Python 安装包必须来自 [python.org](https://www.python.org/downloads/windows/)，并在 Windows 中确认
-Authenticode 状态为 `Valid`。不要安装 ARM64 Python，也不要从非官方镜像获取安装器。
+手动安装只用于自动流程失败后的排查。Python 安装包必须来自
+[python.org](https://www.python.org/downloads/windows/)，并在 Windows 中确认 Authenticode 状态为
+`Valid`。不要安装 ARM64 Python，也不要从非官方镜像获取安装器。
 
 ## macOS 调用 Windows Skill
 

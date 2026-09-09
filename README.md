@@ -19,7 +19,7 @@
 我不希望它只是一套“替换数字”的静态模板，也不会让 Python 预览图冒充 Origin 成图。科学含义和最终选择始终由你决定；遇到把握不足的数据，EditaPlot 会把不确定的列单独列出来请你确认，不会擅自补列、拟合或推断结论。
 
 > [!WARNING]
-> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels + Windows 11 ARM 已完成 x64 CPython 3.12、Origin 2024 SR1 的真实 smoke 与完整产物门禁。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录 VM，再由 `editaplot-parallels.sh` 在 macOS 下载锁定的 Windows wheels、离线配置 guest、发现并本地保存 Origin 路径，后续命令自动复用。Origin 2024b（10.15）仍是唯一完整版本基线；Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
+> **Windows 10/11 x64 实体电脑仍是完整验证基线。** Apple Silicon Mac 上的 Parallels + Windows 11 ARM 已完成 x64 CPython 3.12、Origin 2024 SR1 的真实 smoke 与完整产物门禁。公开版本不携带 Origin 路径；首次调用会要求用户启动并登录 VM，再由 `editaplot-parallels.sh` 在 macOS 下载锁定的 Windows wheels、离线配置 guest、发现并本地保存 Origin 路径。若 guest 缺少兼容 Python，只有用户明确同意后，脚本才会从 macOS 下载、双重校验并安装官方 x64 Windows CPython。Origin 2024b（10.15）仍是唯一完整版本基线；Intel Mac、Linux、WSL、Wine/CrossOver 与其他虚拟机不支持。
 
 > [!IMPORTANT]
 > 我已按 [Apache License 2.0](LICENSE) 开源 EditaPlot。当前兼容目标是 Origin/OriginPro 2021–2026b；你不必提前打开它，EditaPlot 会在绘图前自动启动一个专用实例。我不会替你安装或修改 Origin。
@@ -217,7 +217,7 @@ Origin 自动化阶段，其余任务自动等待。等待事件名为 `origin_j
 | Python | 需要 64 位 Python 3.10–3.12；启动器会自动选择，你无需手动配置 |
 | 数据 | 你可以使用 CSV、TXT、XLS 或 XLSX，也可以保留中文列名与中文路径 |
 
-你不必先弄懂 Python 环境。我让根目录的 `editaplot.cmd` 先寻找电脑上已有的兼容 Python，再创建只属于本项目的环境。若完全找不到，启动器会返回明确的缺少 Python 诊断；此时 Codex 必须先用中文解释这项系统变更并等你同意，之后才可通过官方 winget 安装用户范围的 Python 3.12。没有 winget 时，我在安装指南中给出了 python.org 官方路径。这个过程不会安装或修改 Origin。Doctor 只做只读发现；正式绘图前的真实 smoke 才会自动启动专用 Origin 实例并验证连接。
+你不必先弄懂 Python 环境。我让启动器先寻找已有的兼容 Python，再创建只属于本项目的环境。若完全找不到，Codex 必须先解释这项系统变更并等你同意：实体 Windows 使用官方 winget；离线 Parallels guest 则由 macOS 入口下载固定版本的 python.org x64 安装器，核对 SHA-256 与 Python Software Foundation 的 Authenticode 签名后，以 Windows 当前用户身份安装。macOS Python 不能替代这个 Windows 解释器。该过程不会安装或修改 Origin。Doctor 只做只读发现；正式绘图前的真实 smoke 才会自动启动专用 Origin 实例并验证连接。
 
 ### Codex 需要哪些权限
 
@@ -229,7 +229,7 @@ Origin 自动化阶段，其余任务自动等待。等待事件名为 `origin_j
 | 写入 EditaPlot 仓库和当前用户的 `$HOME\.codex\skills\editaplot` | 创建项目隔离环境并安装/更新 Skill |
 | 写入原始数据所在文件夹 | 在源文件旁新建时间戳交付文件夹；不会覆盖原文件 |
 | 运行本地 `editaplot.cmd`、PowerShell、Python，并在当前 Windows 用户会话启动 Origin | 完成环境检查、Automation smoke、绘图、导出和反读 |
-| 首次安装或更新时访问 GitHub、Python 包源；缺少 Python 时另行确认 winget | 下载公开源码和锁定依赖 |
+| 首次安装或更新时由联网主机访问 GitHub、Python 包源和 python.org；安装 Python 前另行确认 | 下载公开源码、锁定依赖和经校验的官方安装器 |
 
 普通使用**不需要**管理员权限、鼠标控制、整个 C 盘写权限，也不需要修改 DCOM、注册表、防火墙或 Origin 安装。若 Windows“受控文件夹访问”、单位策略、OneDrive/网盘同步或只读目录阻止写入，请只放行当前仓库与当前数据文件夹，或明确选择另一个可写输出目录；不要把全局提权当作修复方法。
 

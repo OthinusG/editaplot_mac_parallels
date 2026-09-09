@@ -19,7 +19,7 @@ I built EditaPlot as a local Windows Codex Skill for turning your experimental d
 I did not want this to become a collection of rigid “replace the numbers” templates, and a Python preview is never passed off as an Origin result. You keep control of the scientific meaning and final choices. When the input is ambiguous, EditaPlot lists the unresolved columns and asks you before drawing instead of inventing columns, fits, or conclusions.
 
 > [!WARNING]
-> **Physical Windows 10/11 x64 remains the fully verified baseline.** Apple Silicon Parallels with Windows 11 on ARM has passed a real smoke and complete-artifact workflow with x64 CPython 3.12 and Origin 2024 SR1. Public releases contain no Origin path: first use asks the user to start and sign in to the VM, then `editaplot-parallels.sh` downloads the locked Windows wheels on macOS, configures the offline guest, and saves the discovered Origin path locally for later commands. Origin 2024b (10.15) remains the only fully verified version baseline. Intel Macs, Linux, WSL, Wine/CrossOver, and other VMs remain unsupported.
+> **Physical Windows 10/11 x64 remains the fully verified baseline.** Apple Silicon Parallels with Windows 11 on ARM has passed a real smoke and complete-artifact workflow with x64 CPython 3.12 and Origin 2024 SR1. Public releases contain no Origin path: first use asks the user to start and sign in to the VM, then `editaplot-parallels.sh` downloads the locked Windows wheels on macOS, configures the offline guest, and saves the discovered Origin path locally. If the guest lacks compatible Python, the script downloads, verifies, and installs official x64 Windows CPython only after explicit user consent. Origin 2024b (10.15) remains the only fully verified version baseline. Intel Macs, Linux, WSL, Wine/CrossOver, and other VMs remain unsupported.
 
 > [!IMPORTANT]
 > I release EditaPlot under the [Apache License 2.0](LICENSE). The current compatibility target is Origin/OriginPro 2021–2026b. You do not need to open it first: EditaPlot starts a dedicated instance before rendering. I do not install or modify Origin.
@@ -226,7 +226,7 @@ I created these palettes as original abstractions and redraws. They do not copy 
 | Python | You need 64-bit Python 3.10–3.12; the launcher selects it automatically, so no manual setup is needed |
 | Input | You can use CSV, TXT, XLS, or XLSX, including Chinese headers and paths |
 
-You do not need to solve the Python environment first. I designed the root `editaplot.cmd` to find a compatible Python already on your computer and create an environment used only by this project. If none is available, the launcher returns a clear missing-Python diagnosis. Codex must then explain the separate system change and wait for your consent before using official winget to install user-scope Python 3.12; the installation guide provides the official python.org route when winget is unavailable. This setup does not install or modify Origin. Doctor performs read-only discovery; a real pre-render smoke test starts a dedicated Origin instance and validates the connection.
+You do not need to solve the Python environment first. The launcher reuses compatible Python and creates a project-only environment. If none is available, Codex explains the separate system change and waits for consent: physical Windows uses official winget, while the offline Parallels route downloads a pinned python.org x64 installer on macOS, verifies SHA-256 and the Python Software Foundation Authenticode signature, then installs it for the signed-in Windows user. macOS Python cannot replace that Windows interpreter. This setup does not install or modify Origin. Doctor performs read-only discovery; a real pre-render smoke test starts a dedicated Origin instance and validates the connection.
 
 ### Minimum permissions for Codex
 
@@ -238,7 +238,7 @@ I recommend approving only the task-scoped permissions below:
 | Write to the EditaPlot repository and the current user's `$HOME\.codex\skills\editaplot` | Create the project environment and install or update the Skill |
 | Write to the source data folder | Create one timestamped delivery folder beside the source without overwriting it |
 | Run local `editaplot.cmd`, PowerShell, and Python, and launch Origin in the same interactive Windows user session | Diagnose, run the Automation smoke, render, export, and read back objects |
-| Access GitHub and the Python package source during setup/update; request separate consent for winget if Python is absent | Download the public source and locked dependencies |
+| Let the networked host access GitHub, the Python package source, and python.org during setup/update; request separate consent before installing Python | Download public source, locked dependencies, and the verified official installer |
 
 Normal use does **not** require administrator rights, mouse control, whole-drive write access, or changes to DCOM, the registry, the firewall, or the Origin installation. If Windows Controlled Folder Access, an organization policy, OneDrive/cloud sync, or a read-only directory blocks output, allow only the repository and current data folder or explicitly select another writable destination.
 

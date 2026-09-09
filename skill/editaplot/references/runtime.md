@@ -36,8 +36,9 @@ Request only the permissions needed for the current local workflow:
    setup/update, and to the source data folder for the timestamped delivery directory.
 3. Run the local batch launcher, PowerShell/Python subprocesses, and an EditaPlot-owned Origin
    process in the same active interactive Windows user session.
-4. Use network access only for repository download/update and the locked dependency source.
-   Obtain separate explicit consent before any user-scope winget Python installation.
+4. Use network access only for repository download/update, the locked dependency source, and an
+   official Python installer downloaded on the macOS host. Obtain separate explicit consent before
+   any user-scope Python installation.
 
 Do not request administrator rights, mouse control, whole-drive access, private-data upload, or
 DCOM, registry, firewall, user-group, or Origin-installation changes. When a protected folder,
@@ -70,7 +71,8 @@ valid EditaPlot managed environment. If neither is available, it probes Windows 
 installation locations, and the Python registry entries together, then selects the highest compatible
 64-bit CPython from 3.10–3.12. It does not modify the selected base interpreter.
 
-If no compatible candidate exists, explain that Python installation is a system-level change.
+If no compatible candidate exists on physical Windows, explain that Python installation is a
+system-level change.
 Inspect the exact package first:
 
 ```powershell
@@ -86,9 +88,16 @@ winget install --exact --id Python.Python.3.12 --source winget --scope user --ar
 
 These flags follow the [official WinGet install documentation](https://learn.microsoft.com/windows/package-manager/winget/install).
 
-If winget is unavailable or fails, stop automatic installation and direct the user to the official
+If winget is unavailable or fails on physical Windows, stop automatic installation and direct the user to the official
 `https://www.python.org/downloads/windows/` page for 64-bit Python 3.12. Then run setup again. Never
 use an untrusted mirror. This permission applies only to Python; never install or alter Origin.
+
+For an Apple Silicon Parallels guest, macOS CPython can download files but cannot load Windows
+`originpro` or `OriginExt`; x64 Windows CPython is still required inside the guest. Keep the guest
+offline. When the macOS launcher reports that Python is absent, ask for explicit consent and only
+then rerun it with `--install-python`. That opt-in downloads a pinned python.org x64 installer on
+macOS, verifies its SHA-256 and Python Software Foundation Authenticode signature, and installs it
+for the signed-in Windows user without administrator rights.
 
 ## Installation and diagnostics
 
@@ -102,9 +111,9 @@ Run setup from a **complete repository**, never from a copied `skill/editaplot` 
 
 `setup` installs or updates the Skill, writes an untracked local runtime pointer, selects a compatible
 Python, creates the project-local managed environment when required, installs only the locked audited
-dependencies, and runs doctor again. The launcher itself does not install Python; the agent follows
-the explicit-consent process above if Python is absent. Environment setup never installs or modifies
-Origin. Users do not need to launch Origin before requesting a figure.
+dependencies, and runs doctor again. The Windows launcher itself does not install Python; the macOS
+Parallels launcher may do so only through its explicit `--install-python` consent flag. Environment
+setup never installs or modifies Origin. Users do not need to launch Origin before requesting a figure.
 
 On first use from an Apple Silicon macOS host, inspect the untracked local configuration. When
 `origin_home` is absent, tell the user to start and sign in to the Windows 11 ARM guest, then run
@@ -117,6 +126,8 @@ the installation directory and rerun with `--origin-home`; later calls inject th
 When the managed environment is absent, the macOS launcher reads the selected guest CPython minor
 from `--diagnose`, downloads its locked `win_amd64` wheels into the macOS user cache, and runs guest
 setup with `PIP_NO_INDEX=1` plus the shared cache as `PIP_FIND_LINKS`. The guest remains offline.
+If the diagnostic finds no compatible guest Python, the normal command stops; after user consent,
+`--install-python` bootstraps the verified official x64 installer and reruns the diagnostic.
 Do not invoke first-time guest setup directly on this route; doing so would make pip use the guest's
 unavailable package index instead of the host wheelhouse.
 

@@ -4,6 +4,8 @@
 
 - Fixed first-time setup for offline guests by downloading the selected CPython minor's locked
   Windows wheels on macOS and forcing guest pip to use only the shared wheelhouse.
+- Added an explicit-consent `--install-python` route that downloads a pinned official x64 Windows
+  installer on macOS, verifies SHA-256 and Authenticode, and installs it for the signed-in guest user.
 
 ## 2026-09-08 — Explicit Origin handshake for Apple Silicon Parallels
 

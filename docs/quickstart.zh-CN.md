@@ -22,12 +22,14 @@ Z=0 基线焦点，不会自动运行 KDE、找峰或求交点。热力图页面
 不要只复制 `skill/editaplot`，那样没有绘图 runtime。会 Git 的用户可以 `git clone`；不会 Git
 或没有 GitHub 账号的用户可以下载 Source ZIP 并完整解压。完整步骤见[安装指南](installation.md)。
 我让启动器先复用已有的 64 位 CPython 3.10–3.12；若完全没有兼容 Python，Codex 必须先向你
-说明这是系统级变更并征得明确同意，才可通过官方 winget 以用户范围安装 Python 3.12。
+说明这是系统级变更并征得明确同意。实体 Windows 使用官方 winget；离线 Parallels guest 使用
+macOS 入口的 `--install-python` 下载、校验并安装官方 x64 Windows CPython。
 EditaPlot 永不自动安装 Origin。
 
 给 Codex 的最小权限是：读取完整仓库、数据和可选参考图；写入仓库、当前用户
 `$HOME\.codex\skills\editaplot` 及数据父文件夹；运行本地 `editaplot.cmd`、PowerShell、Python
-和同一 Windows 用户会话中的 Origin；首次下载/更新时访问 GitHub 与 Python 包源。普通使用不需要
+和同一 Windows 用户会话中的 Origin；首次下载/更新时由联网主机访问 GitHub、Python 包源与
+python.org。普通使用不需要
 管理员、鼠标、全盘写入或 DCOM/注册表/防火墙修改。目录被 Windows 安全策略或网盘锁定时，只放行
 当前仓库和当前数据目录，或明确选择另一个可写输出目录。
 

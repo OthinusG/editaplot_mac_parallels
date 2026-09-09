@@ -22,9 +22,9 @@ rendering, exporting, and readback.
   by the user when prompted or by the configured Codex auto-reviewer. Approval is not guaranteed,
   and this handoff is not a sandbox bypass. Never ask the user to copy the command into a separate
   PowerShell window or broaden the request to administrator or system-configuration access.
-- Use network access only for repository download/update and locked dependency retrieval. Treat a
-  user-scope winget Python installation as a separate system change that still requires explicit
-  consent.
+- Use network access only for repository download/update, locked dependency retrieval, and an
+  official Python installer downloaded by the macOS host. Treat any user-scope Python installation
+  as a separate system change that still requires explicit consent.
 - Do not request administrator rights, mouse control, whole-drive write access, cloud upload of
   private inputs, or DCOM, registry, firewall, user-group, or Origin-installation changes. When
   Controlled Folder Access, an organization policy, cloud sync, or a read-only location blocks
@@ -46,7 +46,12 @@ and retry. Later calls use the installed launcher and persisted path without ask
 The launcher also handles an offline guest: it detects the selected x64 CPython minor, downloads
 that minor's locked `win_amd64` wheels on macOS, and makes setup install only from the shared local
 wheelhouse. Do not ask the user to enable guest networking for dependency installation, and never
-run first-time `editaplot.cmd setup` directly in the guest on the Parallels route.
+run first-time `editaplot.cmd setup` directly in the guest on the Parallels route. macOS CPython
+cannot execute Windows `originpro` or `OriginExt`, so the guest still needs x64 Windows CPython. If
+the diagnostic finds none, explain this separate system change and ask for explicit consent. Only
+after consent, rerun the macOS launcher with `--install-python`; it downloads the pinned official
+installer on macOS, verifies SHA-256 and the Python Software Foundation Authenticode signature, and
+installs it for the signed-in Windows user before continuing offline setup.
 
 1. Reject unsupported platforms before installing anything. Support the CLI/dependency layer on
    physical Windows 10/11 x64 or an Apple Silicon Parallels Windows 11 ARM guest, always using x64
@@ -67,11 +72,11 @@ run first-time `editaplot.cmd setup` directly in the guest on the Parallels rout
    Never instruct users to copy only `skill/editaplot`, because that omits the runtime. Read
    `references/runtime.md` for setup, discovery, and command details.
 4. Reuse an existing compatible Python. If none exists, explain in Chinese that installing Python
-   is a system-level change. Run `winget show` first and explain the exact publisher, source, and
-   agreements. Only explicit user confirmation permits a later non-interactive installation of
-   `Python.Python.3.12` with user scope and x64 architecture. If winget is unavailable, provide the
-   official python.org Windows installation instructions and wait for the user; never use an
-   untrusted mirror or silently install Python.
+   is a system-level change. On physical Windows, run `winget show` first and explain the exact
+   publisher, source, and agreements; only explicit confirmation permits user-scope x64 winget
+   installation. On Apple Silicon Parallels, keep the guest offline and ask for the same explicit
+   consent, then run repository-root `editaplot-parallels.sh --install-python` from macOS. Never use
+   an untrusted mirror, silently install Python, or claim that host CPython replaces guest CPython.
 5. Run `editaplot.cmd doctor` for each new workflow. In an Apple Silicon Parallels guest, use the
    setup-persisted Origin directory; pass `--origin-home <directory-or-Origin64.exe>` only for an
    intentional one-call override. Allow `doctor --repair` only for the reported

@@ -36,7 +36,7 @@ Origin 2020b 及更早版本不在当前外部 `originpro` 路线的支持范围
 | 写入交付目录 | 原始数据的父文件夹 | 在源文件旁新建 `<source_stem>_EditaPlot_<时间>` |
 | 本地执行 | `editaplot.cmd`、PowerShell、Python，以及同一交互式 Windows 用户会话中的 Origin Automation | 体检、smoke、绘图、导出和对象反读 |
 
-联网权限只在下载/更新仓库和安装锁定 Python 包时需要。完全没有兼容 Python 时，winget 安装属于
+联网权限只在下载/更新仓库、获取锁定 Python 包或由宿主机获取官方 Python 安装器时需要。完全没有兼容 Python 时，Python 安装属于
 单独的系统级变更，必须再次解释并征得明确同意。普通运行不需要管理员权限、鼠标控制、整个磁盘
 写权限，也不需要改 DCOM、注册表、防火墙、用户组或 Origin 安装。
 
@@ -236,9 +236,9 @@ Origin 窗口不会继续占锁。该保护不覆盖手动 Origin 脚本、旧�
 两条路径不一致时仍会安全停止。若更新后仍失败，只需记录失败阶段、短错误代码和 Origin 产品版本，
 公开截图前遮住所有与技术故障无关的信息和本地路径。
 
-## 如果电脑完全没有兼容 Python
+## 如果系统完全没有兼容 Python
 
-如果电脑完全没有兼容 Python，我会要求 Codex 先用中文告诉你：接下来可能安装一个
+如果实体 Windows 完全没有兼容 Python，我会要求 Codex 先用中文告诉你：接下来可能安装一个
 **用户范围的官方 Python 3.12**，这是系统级变更。
 先用 Windows 官方包管理器 winget 只读查看准确的软件包信息：
 
@@ -267,6 +267,12 @@ winget install --exact --id Python.Python.3.12 --source winget --scope user --ar
 我不会让 Codex 在未确认时安装 Python，不会改用来历不明的镜像或安装包，也不会因为 Python 已就绪而
 宣称 Origin 已可调用。Doctor 只读枚举 `Origin.Application`、`Origin.ApplicationSI` 和安装
 候选；真实 smoke 才会启动专用实例、读取实际版本并验证连接。
+
+离线 Parallels guest 不使用 winget。macOS Python 只能下载，不能加载 Windows 的 `originpro` 或
+`OriginExt`。若 guest 缺少 x64 CPython，默认入口会停止；Codex 说明系统变更并取得明确同意后，
+从 macOS 运行 `./editaplot-parallels.sh --install-python`。脚本下载固定的 python.org x64 安装器，
+在宿主机核对 SHA-256、在 guest 核对 Python Software Foundation Authenticode，再以当前 Windows
+用户身份安装并继续离线依赖配置。
 
 ## 常见问题
 
@@ -334,6 +340,8 @@ runtime，通常得到 `engine_not_found`。请保留完整仓库，并用根目
 然后运行 macOS 入口 `editaplot-parallels.sh`。`setup` 会读取活动 `Origin.Application` 注册位置，
 把目录写入 Skill 的 `.editaplot-local.json`；若无法唯一发现，Agent 再询问安装目录并通过
 `setup --origin-home` 验证、保存。以后 `doctor`、`origin-smoke` 和 `render` 自动使用它。
+guest 无需联网；缺少兼容 Python 时，只有在用户明确同意后才使用 macOS 入口的
+`--install-python`，官方安装器与锁定 wheels 都由宿主机下载并经共享目录送入 guest。
 EditaPlot 仍会比较注册位置与 Origin 启动后的程序路径，任何不匹配都会停止。完整宿主机流程见
 [Apple Silicon Parallels 工作流](parallels-workflow.zh-CN.md)。
 
@@ -368,11 +376,11 @@ the active holder. Windows releases the lock when the holder exits, including an
 an Origin window kept open after completion does not retain the lock. Manual scripts, older
 EditaPlot releases, and unrelated programs are outside this queue.
 
-The Skill reuses a compatible Python first. If none exists, it must explain the system-level change
-and obtain explicit consent before running official winget to install `Python.Python.3.12` in user
-scope. If winget is unavailable, it provides only the official python.org Windows installation
-instructions. Locked dependencies still go into `.editaplot-venv`; Origin is never installed or
-modified automatically.
+The Skill reuses a compatible Python first. If none exists, it explains the system-level change and
+obtains explicit consent. Physical Windows uses official winget. The offline Parallels route uses
+`editaplot-parallels.sh --install-python` to download a pinned python.org x64 installer on macOS,
+verify SHA-256 and Authenticode, and install it for the signed-in guest user. Locked dependencies
+still go into `.editaplot-venv`; Origin is never installed or modified automatically.
 
 The bundled runtime and Origin automation do not initiate a network upload of selected data.
 Files explicitly provided through Codex remain subject to the user's Codex account, organization,

@@ -20,6 +20,14 @@ locked `win_amd64` wheels into the macOS user cache, and exposes that directory 
 Home sharing. Guest setup runs with `PIP_NO_INDEX=1` and `PIP_FIND_LINKS` pointing at that cache.
 The cache is reusable and contains no Origin path or user data.
 
+macOS CPython cannot run the Windows-only Origin automation stack. If the guest has no compatible
+x64 CPython, the default launcher stops without changing Windows and tells the agent to obtain
+explicit user consent. After consent, `--install-python` downloads one pinned official x64 CPython
+installer on macOS, verifies its SHA-256 digest, verifies its Python Software Foundation
+Authenticode signature inside the guest, and performs a silent current-user installation. It then
+reruns the dependency-free diagnostic before downloading wheels. This route never installs Python
+as an administrator and never installs or modifies Origin.
+
 ## CLI contract
 
 The following commands accept an optional explicit installation constraint:
@@ -60,6 +68,7 @@ Successful environment and compatibility reports include `origin_home_verified: 
 - First use stops until the user has started and signed in to the guest; the macOS launcher uses only `--current-user`.
 - `setup --origin-home` validates and persists the path supplied after unsuccessful or ambiguous discovery.
 - First setup downloads only the selected guest Python minor's locked `win_amd64` wheels on macOS and installs them in the offline guest without contacting an index.
+- Missing guest Python fails closed until the user authorizes `--install-python`; the installer is pinned, host-hash verified, guest-signature verified, and installed only for the signed-in user.
 - Explicit per-command `--origin-home` overrides the persisted default.
 
 ## Verification

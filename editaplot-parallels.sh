@@ -3,7 +3,7 @@ set -eu
 
 usage() {
     printf '%s\n' \
-        'Usage: ./editaplot-parallels.sh [--vm NAME] [--origin-home WINDOWS_PATH] [--] [EditaPlot arguments...]' \
+        'Usage: ./editaplot-parallels.sh [--vm NAME] [--origin-home WINDOWS_PATH] [--install-python] [--] [EditaPlot arguments...]' \
         'Example: ./editaplot-parallels.sh --vm "Windows 11" -- doctor'
 }
 
@@ -14,6 +14,7 @@ fail() {
 
 vm_name=''
 origin_home=''
+install_python=false
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --vm)
@@ -25,6 +26,10 @@ while [ "$#" -gt 0 ]; do
             [ "$#" -ge 2 ] || fail '--origin-home requires a value.'
             origin_home=$2
             shift 2
+            ;;
+        --install-python)
+            install_python=true
+            shift
             ;;
         --help|-h)
             usage
@@ -84,6 +89,38 @@ run_guest_line() {
     prlctl exec "$vm_name" --current-user cmd.exe /d /s /c "$1"
 }
 
+install_guest_python() {
+    python_version='3.12.10'
+    installer_name="python-$python_version-amd64.exe"
+    installer_sha256='67b5635e80ea51072b87941312d00ec8927c4db9ba18938f7ad2d27b328b95fb'
+    installer_relative="Library/Caches/EditaPlot/python/$installer_name"
+    installer="$HOME/$installer_relative"
+    installer_url="https://www.python.org/ftp/python/$python_version/$installer_name"
+
+    command -v curl >/dev/null 2>&1 || fail 'macOS curl is required to download official Python.' 4
+    command -v shasum >/dev/null 2>&1 || fail 'macOS shasum is required to verify official Python.' 4
+    mkdir -p "$(dirname "$installer")"
+    actual_sha256=$(shasum -a 256 "$installer" 2>/dev/null | awk '{print $1}') || actual_sha256=''
+    if [ "$actual_sha256" != "$installer_sha256" ]; then
+        installer_part="$installer.part"
+        printf 'Downloading official x64 CPython %s on macOS...\n' "$python_version" >&2
+        curl --fail --location --proto '=https' --tlsv1.2 --output "$installer_part" "$installer_url" ||
+            fail 'macOS could not download the official Python installer.' 4
+        actual_sha256=$(shasum -a 256 "$installer_part" | awk '{print $1}') || actual_sha256=''
+        [ "$actual_sha256" = "$installer_sha256" ] ||
+            fail 'The downloaded Python installer failed SHA-256 verification.' 4
+        mv -f "$installer_part" "$installer"
+    fi
+
+    installer_guest=$(to_guest_path "$installer_relative")
+    signature_command="\$signature = Get-AuthenticodeSignature -LiteralPath '$installer_guest'; if (\$signature.Status -ne 'Valid' -or \$null -eq \$signature.SignerCertificate -or \$signature.SignerCertificate.Subject -notlike '*Python Software Foundation*') { exit 23 }"
+    prlctl exec "$vm_name" --current-user powershell.exe -NoProfile -NonInteractive -Command "$signature_command" ||
+        fail 'Windows rejected the Python Software Foundation Authenticode signature.' 4
+    printf '%s\n' 'Installing x64 CPython for the signed-in Windows user...' >&2
+    run_guest_line "\"$installer_guest\" /quiet InstallAllUsers=0 Include_launcher=0 InstallLauncherAllUsers=0 Include_test=0 AssociateFiles=0 Shortcuts=0 PrependPath=0" ||
+        fail 'The current-user Python installation failed.' 4
+}
+
 configured=false
 if [ -f "$local_config" ] && grep -Eq '"origin_home"[[:space:]]*:[[:space:]]*"[^" ]' "$local_config"; then
     configured=true
@@ -91,9 +128,16 @@ fi
 
 if [ "$configured" = false ] || [ ! -f "$managed_fingerprint" ] || [ -n "$origin_home" ]; then
     command -v python3 >/dev/null 2>&1 || fail 'macOS python3 is required to download the offline wheelhouse.' 3
-    diagnostic_line="\"$repo_guest${win_sep}editaplot.cmd\" --diagnose"
-    diagnostic=$(run_guest_line "$diagnostic_line") ||
-        fail 'A compatible x64 CPython 3.10-3.12 installation was not found in Windows.' 4
+    diagnostic_line="\"$repo_guest${win_sep}editaplot.cmd\" --diagnose 2>&1"
+    if ! diagnostic=$(run_guest_line "$diagnostic_line"); then
+        printf '%s' "$diagnostic" | grep -q '"code":"python_command_unavailable"' ||
+            fail 'The guest diagnostic failed before Python discovery. Keep Windows signed in and retry.' 4
+        [ "$install_python" = true ] ||
+            fail 'The guest needs x64 CPython 3.10-3.12; macOS CPython cannot run Origin automation. After explicit consent, rerun with --install-python.' 4
+        install_guest_python
+        diagnostic=$(run_guest_line "$diagnostic_line") ||
+            fail 'The installed guest Python did not pass the x64 CPython diagnostic.' 4
+    fi
     python_minor=$(printf '%s' "$diagnostic" | python3 -c \
         'import json,sys; print(json.load(sys.stdin)["selected"]["version_info"][1])') ||
         fail 'The guest Python diagnostic could not be parsed.' 4

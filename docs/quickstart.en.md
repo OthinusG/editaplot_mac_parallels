@@ -29,12 +29,15 @@ in full. See the [installation guide](installation.md).
 
 The launcher reuses an existing 64-bit CPython 3.10–3.12 first. If none exists, the Skill must
 explain the system-level change and obtain explicit consent before installing official Python 3.12
-in user scope with winget. It never installs Origin automatically.
+in user scope. Physical Windows uses official winget; an offline Parallels guest uses macOS
+`--install-python` to download, verify, and install official x64 Windows CPython. It never installs
+Origin automatically.
 
 Codex needs only scoped access: read the complete repository, selected table, and optional reference
 image; write to the repository, the current user's `$HOME\.codex\skills\editaplot`, and the source
 data folder; run local `editaplot.cmd`, PowerShell, Python, and Origin in the same interactive
-Windows user session; and use the network only for initial download/update and locked dependencies.
+Windows user session; and let the networked host access GitHub, the Python package source, and
+python.org only for initial download/update, locked dependencies, and the verified installer.
 Normal use requires no administrator rights, mouse control, whole-drive write access, or DCOM,
 registry, firewall, or Origin-installation changes.
 

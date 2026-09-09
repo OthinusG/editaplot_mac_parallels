@@ -4,7 +4,7 @@
   <p><strong>AI 驱动的可编辑科研绘图工作流</strong><br>AI-guided editable scientific figures</p>
   <p>
     <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-4c6ef5">
-    <img alt="Platform: Windows 10/11 x64 only" src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64%20only-0078d4">
+    <img alt="Platform: macOS ARM only" src="https://img.shields.io/badge/macOS-Apple_Silicon-black?logo=apple&logoColor=white">
     <img alt="Python 3.10–3.12" src="https://img.shields.io/badge/Python-3.10%E2%80%933.12-3776ab">
     <img alt="Codex Skill" src="https://img.shields.io/badge/Codex-Skill-7c3aed">
     <img alt="Origin 2021–2026b compatibility target" src="https://img.shields.io/badge/Origin-2021%E2%80%932026b%20target-2563eb">

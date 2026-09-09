@@ -164,6 +164,10 @@ def build_parser() -> argparse.ArgumentParser:
     render_parser.add_argument("plan_file")
     render_parser.add_argument("--python", dest="python_executable")
     render_parser.add_argument("--output-dir")
+    render_parser.add_argument(
+        "--format-template-opju",
+        help="Copy all graph formatting from a read-only OPJU after drawing",
+    )
     render_parser.add_argument("--close-origin", action="store_true")
     _engine_option(render_parser)
     _origin_home_option(render_parser)
@@ -325,6 +329,7 @@ def _run_render(args: argparse.Namespace) -> int:
         engine_home=args.engine_home,
         python_executable=args.python_executable,
         output_dir=args.output_dir,
+        format_template_opju=args.format_template_opju,
         close_origin=args.close_origin,
         origin_home=args.origin_home,
     )

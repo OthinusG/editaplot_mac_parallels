@@ -623,6 +623,52 @@ def test_plan_is_hash_bound_and_builds_safe_worker_command(tmp_path: Path) -> No
     assert env[core.EXPECTED_ORIGIN_HOME_ENV] == str(origin_home.resolve())
 
 
+def test_render_passes_hash_bound_opju_format_template_to_worker(tmp_path: Path) -> None:
+    source = ENGINE / "templates" / "xrd" / "example_standard.csv"
+    plan = build_plan(
+        source,
+        template_id="xrd",
+        claim="The teaching patterns differ across the measured angle range.",
+        evidence_role="comparison",
+        semantic_confirmation=_semantic_confirmation(source, "xrd"),
+        engine_home=ENGINE,
+    )
+    template = tmp_path / "format.OPJU"
+    template.write_bytes(b"opju-format-template")
+
+    command, _env, _root = build_worker_command(
+        plan,
+        engine_home=ENGINE,
+        format_template_opju=template,
+    )
+
+    assert command[command.index("--format-template-opju") + 1] == str(template.resolve())
+    assert command[command.index("--expected-format-template-digest") + 1] == hashlib.sha256(
+        template.read_bytes()
+    ).hexdigest()
+
+
+def test_render_rejects_invalid_format_template_before_worker_start(tmp_path: Path) -> None:
+    source = ENGINE / "templates" / "xrd" / "example_standard.csv"
+    plan = build_plan(
+        source,
+        template_id="xrd",
+        claim="The teaching patterns differ across the measured angle range.",
+        evidence_role="comparison",
+        semantic_confirmation=_semantic_confirmation(source, "xrd"),
+        engine_home=ENGINE,
+    )
+
+    with pytest.raises(EditaPlotError) as raised:
+        build_worker_command(
+            plan,
+            engine_home=ENGINE,
+            format_template_opju=tmp_path / "format.txt",
+        )
+
+    assert raised.value.code == "format_template_invalid"
+
+
 def test_origin_home_accepts_directory_or_origin64_executable(tmp_path: Path) -> None:
     origin_home = tmp_path / "Origin2024b"
     origin_home.mkdir()

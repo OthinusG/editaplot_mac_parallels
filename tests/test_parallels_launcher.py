@@ -10,6 +10,12 @@ import pytest
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="macOS POSIX launcher test")
 
 
+def test_explicit_python_install_forces_environment_recovery() -> None:
+    launcher = (Path(__file__).resolve().parents[1] / "editaplot-parallels.sh").read_text()
+
+    assert 'if [ "$install_python" = true ] ||' in launcher
+
+
 def test_first_use_runs_setup_only_through_current_user(tmp_path: Path) -> None:
     home = tmp_path / "home"
     repository = home / "editaplot"

@@ -219,6 +219,7 @@ invalidates that confirmation.
 .\editaplot.cmd reference-review <reference-image> <reference-spec-json> --output reference-review.json
 .\editaplot.cmd origin-smoke --output-dir <unique-smoke-directory>
 .\editaplot.cmd render render-plan.json
+.\editaplot.cmd render render-plan.json --format-template-opju <format-template.opju>
 .\editaplot.cmd verify <output-directory>
 .\editaplot.cmd panel-plan medical-panels.json --claim "The model is accurate, calibrated, and anatomically plausible" --output medical-panel-plan.json
 ```
@@ -228,6 +229,12 @@ command supports it. Render forwards the engine worker's JSON-lines progress pro
 `--engine-home <root>` only when an engine developer intentionally overrides runtime discovery.
 After `plan`, the required formal sequence is `origin-smoke → render → verify`; never skip the smoke
 because Doctor reported `ready_for_render`.
+
+`--format-template-opju` is an optional post-draw graph-format operation. The worker hashes the
+read-only OPJU before Origin, copies all properties from its active graph page (falling back to the
+first graph page), applies that COM Theme tree to the rendered graph, and regenerates the saved OPJU
+and image exports. It does not merge template data, worksheets, analyses, or annotations into the
+result. A template without a graph page fails closed.
 
 Reference-image adaptation uses three separate inputs at plan time: the local image, the reviewed
 strict ReferenceFigureSpec JSON, and its exact confirmation JSON. Codex constructs the declarative

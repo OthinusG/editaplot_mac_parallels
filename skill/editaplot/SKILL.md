@@ -183,10 +183,17 @@ installs it for the signed-in Windows user before continuing offline setup.
     Do not redirect ordinary runs to the repository, Skill directory, current working directory, or
     a shared global output folder. Use `--output-dir` only when the user explicitly requests another
     location. On the Apple Silicon Parallels route, reuse the setup-persisted Origin path.
+    When the user supplies an OPJU as a visual format template, add
+    `--format-template-opju <template.opju>` to `render` and keep that file read-only. After drawing,
+    the worker copies all properties from the template's active graph page (or first graph page)
+    COM `Theme` tree to the rendered graph, then saves and exports OPJU/PNG/PDF/TIF again. This
+    transfers graph formatting only, not template data, worksheets, analyses, or annotations.
 16. Run `editaplot.cmd verify <output-directory>` against that source-adjacent folder and perform
     human visual QA. If smoke or render fails, a Python preview or standalone PNG/PDF/SVG is only
     a preview and must not be presented as completed Origin work. Formal success requires the
     editable OPJU, PNG, PDF, TIF, object readback, and human visual QA together.
+    For an OPJU format template, also require
+    `origin_verify_report.json` to record `format_template.applied=true`.
 
 Before any render, read `references/origin-safety.md`, `references/figure-contract.md`, and
 `references/verification.md`. For a new table or chart decision, read

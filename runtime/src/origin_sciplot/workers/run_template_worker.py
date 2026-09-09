@@ -16,6 +16,7 @@ from origin_sciplot.logging_utils import RunLogger
 from origin_sciplot.origin_backend.execution_context import (
     require_interactive_origin_context,
 )
+from origin_sciplot.origin_backend.export_utils import export_graph
 from origin_sciplot.origin_backend.job_queue import origin_job_slot
 from origin_sciplot.origin_backend.safe_errors import (
     OriginDrawError,
@@ -166,10 +167,103 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--palette-id")
     parser.add_argument("--visual-style-json")
     parser.add_argument("--reference-style-json")
+    parser.add_argument("--format-template-opju")
+    parser.add_argument("--expected-format-template-digest")
     parser.set_defaults(keep_origin_open=True)
     parser.add_argument("--keep-origin-open", dest="keep_origin_open", action="store_true")
     parser.add_argument("--close-origin", dest="keep_origin_open", action="store_false")
     return parser
+
+
+def _validate_format_template(path: str | None, expected_digest: str | None) -> Path | None:
+    if path is None and expected_digest is None:
+        return None
+    template = Path(path or "").expanduser().resolve()
+    if (
+        expected_digest is None
+        or template.suffix.casefold() != ".opju"
+        or not template.is_file()
+    ):
+        raise ScientificWorkflowError(
+            "format_template_invalid",
+            "The format template must be an existing OPJU file.",
+        )
+    if hashlib.sha256(template.read_bytes()).hexdigest() != expected_digest:
+        raise ScientificWorkflowError(
+            "format_template_changed",
+            "The OPJU format template changed after the render command was prepared.",
+        )
+    return template
+
+
+def _current_or_first_graph(origin: Any) -> Any | None:
+    graph = origin.find_graph()
+    return graph if graph is not None else next(origin.pages("g"), None)
+
+
+def _apply_opju_format_template(
+    template: Path,
+    expected_digest: str,
+    result: Any,
+    output: RunOutput,
+) -> None:
+    """Copy the template page's full COM Theme tree onto the rendered graph."""
+
+    if not isinstance(result, dict) or not isinstance(result.get("verify"), dict):
+        raise OriginDrawError(
+            "The renderer returned no format-template target.",
+            code="format_template_target_invalid",
+            stage="apply_format_template",
+        )
+    try:
+        import originpro as op  # type: ignore
+
+        target = _current_or_first_graph(op)
+        if target is None:
+            raise RuntimeError("target graph unavailable")
+        target_name = target.name
+        if not op.open(str(template), readonly=True, asksave=False):
+            raise RuntimeError("template project unavailable")
+        source = _current_or_first_graph(op)
+        if source is None:
+            raise RuntimeError("template graph unavailable")
+        theme = source.obj.Theme
+        if theme is None:
+            raise RuntimeError("template theme unavailable")
+        if not op.open(str(output.result_opju), readonly=False, asksave=False):
+            raise RuntimeError("rendered project unavailable")
+        target = op.find_graph(target_name) or _current_or_first_graph(op)
+        if target is None:
+            raise RuntimeError("rendered graph unavailable")
+        target.obj.Theme = theme
+        target.activate()
+        op.lt_exec("doc -uw;")
+        if not op.save(str(output.result_opju)):
+            raise RuntimeError("formatted project save failed")
+        require_nonempty(output.result_opju)
+        exports = export_graph(
+            op,
+            target,
+            output.result_png,
+            output.result_pdf,
+            output.result_tif,
+        )
+    except Exception as exc:  # noqa: BLE001 - never expose local COM details
+        raise OriginDrawError(
+            "Origin could not apply the OPJU graph format template.",
+            code="format_template_apply_failed",
+            stage="apply_format_template",
+        ) from exc
+
+    report = {
+        "applied": True,
+        "scope": "all",
+        "source": "opju_graph_page_theme",
+        "sha256": expected_digest,
+    }
+    result["verify"]["exports"] = exports
+    result["verify"]["format_template"] = report
+    write_json(output.origin_verify_report, result["verify"])
 
 
 def _parse_reference_style_request(raw: str | None) -> dict[str, Any] | None:
@@ -647,6 +741,10 @@ def main(argv: list[str] | None = None) -> int:
     reference_style_report: dict[str, Any] | None = None
     xps_visual_style_report: dict[str, Any] | None = None
     try:
+        format_template = _validate_format_template(
+            args.format_template_opju,
+            args.expected_format_template_digest,
+        )
         render_plan_source = None
         if args.render_plan_file:
             render_plan_source = Path(args.render_plan_file).resolve()
@@ -938,7 +1036,9 @@ def main(argv: list[str] | None = None) -> int:
         proto.progress("validate_csv", "success", "绘图数据校验通过")
 
         runner = _load_runner(manifest.runner_path)
-        runner_options = {"keep_origin_open": args.keep_origin_open}
+        runner_options = {
+            "keep_origin_open": args.keep_origin_open or format_template is not None
+        }
         if xps_analysis is not None:
             runner_options["preparation"] = xps_analysis
         elif scientific_analysis is not None:
@@ -967,14 +1067,36 @@ def main(argv: list[str] | None = None) -> int:
             )
             return compatibility_payload
 
-        result, compatibility = _run_origin_draw_export_verify(
-            lambda: runner.run(
+        def run_and_apply_format_template() -> Any:
+            result_payload = runner.run(
                 manifest,
                 validation_frame,
                 output,
                 logger,
                 **runner_options,
-            ),
+            )
+            if format_template is not None:
+                _apply_opju_format_template(
+                    format_template,
+                    str(args.expected_format_template_digest),
+                    result_payload,
+                    output,
+                )
+                if not args.keep_origin_open:
+                    try:
+                        import originpro as op  # type: ignore
+
+                        op.exit()
+                    except Exception as exc:  # noqa: BLE001 - redact local COM details
+                        raise OriginEnvironmentError(
+                            "Origin session could not be closed",
+                            code="origin_exit_failed",
+                            stage="close_instance",
+                        ) from exc
+            return result_payload
+
+        result, compatibility = _run_origin_draw_export_verify(
+            run_and_apply_format_template,
             verify_runner_result,
         )
         done_payload = _compact_runner_result(result, output, compatibility)

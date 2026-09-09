@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -14,12 +15,101 @@ if str(RUNTIME_SRC) not in sys.path:
 
 from origin_sciplot.workers import run_template_worker as worker  # noqa: E402
 from origin_sciplot.workers.run_template_worker import (  # noqa: E402
+    _apply_opju_format_template,
     _compact_plot_spec_payload,
     _compact_runner_result,
     _load_template_manifest,
     _run_data_analysis,
     _run_origin_draw_export_verify,
 )
+
+
+def test_apply_opju_format_template_uses_com_theme_and_reexports(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template = tmp_path / "template.opju"
+    template.write_bytes(b"template")
+    result_opju = tmp_path / "result.opju"
+    result_opju.write_bytes(b"rendered")
+    report_path = tmp_path / "origin_verify_report.json"
+    report_path.write_text("{}", encoding="utf-8")
+    theme = object()
+    assigned: list[object] = []
+
+    class PageObject:
+        def __init__(self, source: bool) -> None:
+            self.source = source
+
+        @property
+        def Theme(self) -> object:  # noqa: N802 - Origin COM name
+            assert self.source
+            return theme
+
+        @Theme.setter
+        def Theme(self, value: object) -> None:  # noqa: N802 - Origin COM name
+            assigned.append(value)
+
+    class Graph:
+        def __init__(self, name: str, source: bool = False) -> None:
+            self.name = name
+            self.obj = PageObject(source)
+
+        def activate(self) -> None:
+            pass
+
+    target = Graph("Result")
+    source = Graph("Template", source=True)
+
+    class FakeOrigin:
+        current = target
+
+        def find_graph(self, name: str = "") -> Graph | None:
+            if name == "Result":
+                return target if self.current is target else None
+            return self.current
+
+        def pages(self, _kind: str):
+            yield self.current
+
+        def open(self, path: str, **_kwargs: object) -> bool:
+            self.current = source if Path(path) == template else target
+            return True
+
+        def lt_exec(self, command: str) -> bool:
+            assert command == "doc -uw;"
+            return True
+
+        def save(self, path: str) -> bool:
+            Path(path).write_bytes(b"formatted")
+            return True
+
+    fake_origin = FakeOrigin()
+    monkeypatch.setitem(sys.modules, "originpro", fake_origin)
+    monkeypatch.setattr(
+        worker,
+        "export_graph",
+        lambda *_args, **_kwargs: {"png": True, "pdf": True, "tif": True},
+    )
+    output = SimpleNamespace(
+        result_opju=result_opju,
+        result_png=tmp_path / "result.png",
+        result_pdf=tmp_path / "result.pdf",
+        result_tif=tmp_path / "result.tif",
+        origin_verify_report=report_path,
+    )
+    result = {"verify": {"origin_axis_state": {"x": {}}}}
+
+    _apply_opju_format_template(template, "abc123", result, output)
+
+    assert assigned == [theme]
+    assert result["verify"]["format_template"] == {
+        "applied": True,
+        "scope": "all",
+        "source": "opju_graph_page_theme",
+        "sha256": "abc123",
+    }
+    assert json.loads(report_path.read_text(encoding="utf-8")) == result["verify"]
 
 
 def test_done_payload_keeps_artifacts_but_not_full_origin_readback(

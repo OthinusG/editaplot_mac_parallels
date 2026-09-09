@@ -126,7 +126,7 @@ if [ -f "$local_config" ] && grep -Eq '"origin_home"[[:space:]]*:[[:space:]]*"[^
     configured=true
 fi
 
-if [ "$configured" = false ] || [ ! -f "$managed_fingerprint" ] || [ -n "$origin_home" ]; then
+if [ "$install_python" = true ] || [ "$configured" = false ] || [ ! -f "$managed_fingerprint" ] || [ -n "$origin_home" ]; then
     command -v python3 >/dev/null 2>&1 || fail 'macOS python3 is required to download the offline wheelhouse.' 3
     diagnostic_line="\"$repo_guest${win_sep}editaplot.cmd\" --diagnose 2>&1"
     if ! diagnostic=$(run_guest_line "$diagnostic_line"); then

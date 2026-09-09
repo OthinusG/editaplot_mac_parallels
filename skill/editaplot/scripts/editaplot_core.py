@@ -2544,6 +2544,7 @@ def build_worker_command(
     engine_home: str | Path | None = None,
     python_executable: str | Path | None = None,
     output_dir: str | Path | None = None,
+    format_template_opju: str | Path | None = None,
     close_origin: bool = False,
     origin_home: str | Path | None = None,
 ) -> tuple[list[str], dict[str, str], Path]:
@@ -2568,6 +2569,21 @@ def build_worker_command(
         command.extend(("--output-dir", str(Path(output_dir).resolve())))
     if plan_file:
         command.extend(("--render-plan-file", str(Path(plan_file).resolve())))
+    if format_template_opju:
+        format_template = Path(format_template_opju).expanduser().resolve()
+        if format_template.suffix.casefold() != ".opju" or not format_template.is_file():
+            raise EditaPlotError(
+                "format_template_invalid",
+                "The format template must be an existing OPJU file.",
+            )
+        command.extend(
+            (
+                "--format-template-opju",
+                str(format_template),
+                "--expected-format-template-digest",
+                _sha256(format_template),
+            )
+        )
     mapping = plan["template"].get("worker_mapping")
     if mapping:
         command.extend(("--column-mapping-json", json.dumps(mapping, ensure_ascii=False)))
